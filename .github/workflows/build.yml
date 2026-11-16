@@ -31,7 +31,16 @@ jobs:
           brew install xcodegen
           xcodegen generate
 
-      - name: Boot simulator and grant photo access
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project MyApp.xcodeproj -scheme MyApp \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build.log | xcbeautify --renderer github-actions
+
+      - name: Boot simulator, install app, grant photo access
         run: |
           UDID=$(xcrun simctl list devices available -j | python3 -c '
           import json,sys
@@ -42,19 +51,20 @@ jobs:
           echo "UDID=$UDID" >> $GITHUB_ENV
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
+          APP=$(find build/Build/Products -name "MyApp.app" -path "*iphonesimulator*" | head -1)
+          xcrun simctl install "$UDID" "$APP"
           xcrun simctl privacy "$UDID" grant photos com.example.myapp
           xcrun simctl privacy "$UDID" grant photos-add com.example.myapp
 
       - name: Run tests
         run: |
           set -o pipefail
-          xcodebuild test \
-            -project MyApp.xcodeproj \
-            -scheme MyApp \
-            -destination "id=$UDID" \
-            CODE_SIGNING_ALLOWED=NO \
+          xcodebuild test-without-building \
+            -project MyApp.xcodeproj -scheme MyApp \
+            -destination "id=$UDID" -derivedDataPath build \
+            -test-timeouts-enabled YES -maximum-test-execution-time-allowance 300 \
             2>&1 | tee test.log | xcbeautify --renderer github-actions
       - name: Results
         if: always()
         run: |
-          grep -E "\[TEST\]|error:|failed|passed" test.log | grep -v "^ *$" | sort -u | head -60 || true
+          grep -E "\[TEST\]|error:|Test Case.*(passed|failed)" test.log | sort -u | head -60 || true

@@ -14,9 +14,32 @@ final class CompressorTests: XCTestCase {
         (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.int64Value ?? 0
     }
 
+    /// Copy of a fixture with iPhone-style QuickTime metadata (GPS, make, model, date).
+    /// ffmpeg writes its tags where AVFoundation reads them as iTunes tags, so add them the Apple way.
+    func iPhoneStyle(_ name: String) async throws -> URL {
+        let out = FileManager.default.temporaryDirectory.appendingPathComponent("\(name)-iphone-\(UUID().uuidString).mov")
+        let session = try XCTUnwrap(AVAssetExportSession(asset: AVURLAsset(url: try fixture(name)),
+                                                         presetName: AVAssetExportPresetPassthrough))
+        func item(_ id: AVMetadataIdentifier, _ value: String) -> AVMetadataItem {
+            let m = AVMutableMetadataItem()
+            m.identifier = id
+            m.value = value as NSString
+            m.dataType = kCMMetadataBaseDataType_UTF8 as String
+            return m
+        }
+        session.metadata = [
+            item(.quickTimeMetadataLocationISO6709, "+53.5511+009.9937+010.000/"),
+            item(.quickTimeMetadataMake, "Apple"),
+            item(.quickTimeMetadataModel, "iPhone 16 Pro"),
+            item(.quickTimeMetadataCreationDate, "2026-08-01T12:00:00+0200"),
+        ]
+        try await session.export(to: out, as: .mov)
+        return out
+    }
+
     func compress(_ name: String, _ quality: CompressionQuality, qualityMode: Bool = true,
                   file: StaticString = #filePath, line: UInt = #line) async throws -> (VideoCompressor.Result, AVURLAsset) {
-        let src = try fixture(name)
+        let src = name == "sdr_1080p" ? try await iPhoneStyle(name) : try fixture(name)
         let compressor = VideoCompressor()
         compressor.preferQualityMode = qualityMode
         let outcome = try await compressor.compress(
@@ -53,6 +76,7 @@ final class CompressorTests: XCTestCase {
             let meta = try await out.load(.metadata)
             let ids = meta.compactMap { $0.identifier?.rawValue }
             XCTAssertTrue(ids.contains { $0.contains("location.ISO6709") }, "GPS lost. Metadata: \(ids)")
+            XCTAssertTrue(ids.contains { $0.contains("quicktime.model") }, "camera model lost. Metadata: \(ids)")
         }
     }
 

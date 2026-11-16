@@ -14,8 +14,13 @@ final class LibraryTests: XCTestCase {
     let testLocation = CLLocation(latitude: 53.5511, longitude: 9.9937)
 
     override func setUp() async throws {
+        continueAfterFailure = false
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        XCTAssertEqual(status, .authorized, "Photo access not granted in the simulator - CI setup problem")
+        // Without access, the first library write would show a permission dialog and hang the run.
+        guard status == .authorized else {
+            XCTFail("Photo access not granted in the simulator (status \(status.rawValue)) - CI setup problem")
+            throw XCTSkip("no photo access")
+        }
         UserDefaults.standard.removeObject(forKey: "processedAssetIDs")
         UserDefaults.standard.removeObject(forKey: "pendingDeleteIDs")
     }
