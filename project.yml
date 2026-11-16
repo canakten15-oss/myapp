@@ -55,3 +55,29 @@ targets:
         # Google's public TEST app ID. Replace with your AdMob app ID before release.
         GADApplicationIdentifier: ca-app-pub-3940256099942544~1458002511
         ITSAppUsesNonExemptEncryption: false
+
+  MyAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: MyAppTests
+    dependencies:
+      - target: MyApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.myapp.tests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/MyApp.app/MyApp"
+        BUNDLE_LOADER: "$(TEST_HOST)"
+
+schemes:
+  MyApp:
+    build:
+      targets:
+        MyApp: all
+        MyAppTests: [test]
+    test:
+      config: Debug
+      targets:
+        - MyAppTests

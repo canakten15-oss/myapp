@@ -42,3 +42,48 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             | tee build.log | xcbeautify --renderer github-actions || \
           (grep -E "error:" build.log | sort -u | head -50; exit 1)
+
+  test:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Select Xcode 26
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+
+      - name: Generate project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Boot simulator and grant photo access
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json,sys
+          d=json.load(sys.stdin)["devices"]
+          c=[(r,x) for r,l in d.items() if "iOS" in r for x in l if x["name"].startswith("iPhone")]
+          c.sort(key=lambda t:(t[0],"Pro" in t[1]["name"]))
+          print(c[-1][1]["udid"]); print(c[-1][0], c[-1][1]["name"], file=sys.stderr)')
+          echo "UDID=$UDID" >> $GITHUB_ENV
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl privacy "$UDID" grant photos com.example.myapp
+          xcrun simctl privacy "$UDID" grant photos-add com.example.myapp
+
+      - name: Run tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project MyApp.xcodeproj \
+            -scheme MyApp \
+            -destination "id=$UDID" \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee test.log | xcbeautify --renderer github-actions
+      - name: Results
+        if: always()
+        run: |
+          grep -E "\[TEST\]|error:|failed|passed" test.log | grep -v "^ *$" | sort -u | head -60 || true
