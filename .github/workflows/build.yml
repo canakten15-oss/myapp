@@ -53,8 +53,16 @@ jobs:
           xcrun simctl bootstatus "$UDID" -b
           APP=$(find build/Build/Products -name "MyApp.app" -path "*iphonesimulator*" | head -1)
           xcrun simctl install "$UDID" "$APP"
-          xcrun simctl privacy "$UDID" grant photos com.example.myapp
-          xcrun simctl privacy "$UDID" grant photos-add com.example.myapp
+          xcrun simctl privacy "$UDID" grant all com.example.myapp || true
+          # simctl's grant doesn't reach PhotoKit's read/write access on newer simulators:
+          # write the permission straight into the simulator's privacy database too.
+          DB=~/Library/Developer/CoreSimulator/Devices/$UDID/data/Library/TCC/TCC.db
+          echo "--- schema"; sqlite3 "$DB" ".schema access" | head -5
+          for SVC in kTCCServicePhotos kTCCServicePhotosAdd; do
+            sqlite3 "$DB" "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version, flags, last_modified) VALUES ('$SVC','com.example.myapp',0,2,2,1,0,strftime('%s','now'));" \
+              || sqlite3 "$DB" "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version) VALUES ('$SVC','com.example.myapp',0,2,2,1);"
+          done
+          echo "--- rows"; sqlite3 "$DB" "SELECT service, client, auth_value FROM access WHERE client='com.example.myapp';"
 
       - name: Run tests
         run: |
