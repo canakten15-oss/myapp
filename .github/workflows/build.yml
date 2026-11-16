@@ -37,7 +37,8 @@ jobs:
           xcodebuild build-for-testing \
             -project MyApp.xcodeproj -scheme MyApp \
             -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
             2>&1 | tee build.log | xcbeautify --renderer github-actions
 
       - name: Boot simulator, install app, grant photo access
@@ -52,6 +53,7 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           APP=$(find build/Build/Products -name "MyApp.app" -path "*iphonesimulator*" | head -1)
+          codesign -dv "$APP" 2>&1 | grep -E "Identifier|Signature" || true
           xcrun simctl install "$UDID" "$APP"
           xcrun simctl privacy "$UDID" grant all com.example.myapp || true
           # simctl's grant doesn't reach PhotoKit's read/write access on newer simulators:
