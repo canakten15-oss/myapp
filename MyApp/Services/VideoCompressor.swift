@@ -14,6 +14,7 @@ final class VideoCompressor {
         let droppedAudioTracks: Int
         let usedQualityMode: Bool
         let similarity: Double
+        let isHDR: Bool
     }
 
     enum Outcome {
@@ -227,7 +228,7 @@ final class VideoCompressor {
 
         return .compressed(Result(url: outURL, inputBytes: originalBytes, outputBytes: outBytes,
                                   droppedAudioTracks: dropped, usedQualityMode: useQualityMode,
-                                  similarity: similarity ?? 1))
+                                  similarity: similarity ?? 1, isHDR: isHDR))
     }
 
     // MARK: helpers

@@ -119,6 +119,13 @@ final class LibraryViewModel: ObservableObject {
 
     private func process(_ item: VideoItem) async {
         let id = item.id
+        let started = Date()
+        let q = quality
+        func log(_ result: String) {
+            let a = item.asset
+            let res = max(a.pixelWidth, a.pixelHeight) >= 3800 ? "4K" : "\(min(a.pixelWidth, a.pixelHeight))p"
+            appendReport("\(res) · \(Format.duration(a.duration)) · \(q.label) · \(result) · \(Int(Date().timeIntervalSince(started))) s")
+        }
         do {
             update(id, .downloading(0))
             let avAsset = try await PhotoLibraryService.loadOriginal(item.asset) { [weak self] p in
@@ -134,6 +141,7 @@ final class LibraryViewModel: ObservableObject {
 
             switch outcome {
             case .alreadyEfficient:
+                log("\(Format.bytes(item.fileSize)) skipped: already efficient")
                 markProcessed(id)
                 update(id, .skipped("Already efficient"))
 
@@ -145,6 +153,12 @@ final class LibraryViewModel: ObservableObject {
                 markProcessed(id)
                 addPendingDelete(id, bytes: item.fileSize)
                 let saved = result.inputBytes - result.outputBytes
+                let pct = result.inputBytes > 0 ? 100 - Int(result.outputBytes * 100 / result.inputBytes) : 0
+                log("\(Format.bytes(result.inputBytes)) → \(Format.bytes(result.outputBytes)) (−\(pct)%)"
+                    + (result.isHDR ? " · HDR" : "")
+                    + " · \(result.usedQualityMode ? "quality" : "bitrate") mode"
+                    + String(format: " · SSIM %.3f", result.similarity)
+                    + (result.droppedAudioTracks > 0 ? " · dropped \(result.droppedAudioTracks) audio" : ""))
                 lastBatchSaved += saved
                 totalSavedBytes += Double(saved)
                 update(id, .done(savedBytes: saved))
@@ -153,8 +167,10 @@ final class LibraryViewModel: ObservableObject {
             update(id, .pending)
         } catch AppError.qualityTooLow(let score) {
             // copy discarded, original untouched; offered again next scan (e.g. with Best quality)
+            log(String(format: "\(Format.bytes(item.fileSize)) rejected: SSIM %.3f", score))
             update(id, .skipped(String(format: "Kept original: copy only %.0f%% similar", score * 100)))
         } catch {
+            log("\(Format.bytes(item.fileSize)) FAILED: \(error.localizedDescription)")
             update(id, .failed(error.localizedDescription))
         }
     }
@@ -224,6 +240,30 @@ final class LibraryViewModel: ObservableObject {
             // user tapped "Don't Allow" in the system dialog - keep the list
             errorMessage = "Nothing was deleted."
         }
+    }
+
+    // MARK: test report (Settings → Test report; shared by testers)
+
+    @Published private(set) var report: [String] = UserDefaults.standard.stringArray(forKey: "testReport") ?? []
+
+    private func appendReport(_ line: String) {
+        let stamp = Date().formatted(date: .numeric, time: .shortened)
+        report.insert("\(stamp) · \(line)", at: 0)
+        if report.count > 200 { report.removeLast(report.count - 200) }
+        UserDefaults.standard.set(report, forKey: "testReport")
+    }
+
+    func clearReport() {
+        report = []
+        UserDefaults.standard.removeObject(forKey: "testReport")
+    }
+
+    var reportText: String {
+        let d = UIDevice.current
+        var sys = utsname(); uname(&sys)
+        let model = withUnsafeBytes(of: &sys.machine) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        return (["MyApp \(version) · \(model) · \(d.systemName) \(d.systemVersion)"] + report).joined(separator: "\n")
     }
 
     // MARK: persistence

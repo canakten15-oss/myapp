@@ -17,6 +17,24 @@ struct SettingsView: View {
                     Text("Edited, slo-mo, time-lapse and shared videos are always skipped so nothing gets lost.")
                 }
 
+                Section {
+                    if model.report.isEmpty {
+                        Text("Compress some videos, then share this report.").foregroundStyle(.secondary)
+                    } else {
+                        ForEach(model.report.prefix(30), id: \.self) { line in
+                            Text(line).font(.caption.monospaced())
+                        }
+                        ShareLink(item: model.reportText) {
+                            Label("Share report", systemImage: "square.and.arrow.up")
+                        }
+                        Button("Clear report", role: .destructive) { model.clearReport() }
+                    }
+                } header: {
+                    Text("Test report")
+                } footer: {
+                    Text("Size, savings, quality score and time for each video. No video content or location is included.")
+                }
+
                 Section("About") {
                     Link("Source code (open source)", destination: repoURL)
                     Link("Privacy policy", destination: privacyURL)

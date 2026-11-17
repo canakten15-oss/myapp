@@ -21,6 +21,7 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showSettings = true } label: { Image(systemName: "gearshape") }
+                        .accessibilityIdentifier("settings")
                         .disabled(model.isRunning)
                 }
             }
@@ -76,6 +77,10 @@ struct LibraryView: View {
                         VideoRow(item: item)
                             .contentShape(Rectangle())
                             .onTapGesture { if !model.isRunning { model.toggle(item) } }
+                            .accessibilityElement(children: .combine)
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityAddTraits(item.isSelected ? .isSelected : [])
+                            .accessibilityIdentifier("videoRow")
                     }
                 }
             } header: {
@@ -105,7 +110,7 @@ struct WorkingView: View {
             // --- progress panel (real app content)
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("Compressing").font(.headline)
+                    Text("Compressing").font(.headline).accessibilityIdentifier("workingTitle")
                     Spacer()
                     Text("\(min(model.batchDone + 1, model.batchTotal)) of \(model.batchTotal)")
                         .font(.subheadline.monospacedDigit())
@@ -229,6 +234,7 @@ struct DeleteOriginalsCard: View {
             } label: {
                 Label("Delete originals", systemImage: "trash")
             }
+            .accessibilityIdentifier("deleteOriginals")
             .buttonStyle(.borderedProminent)
             .tint(.red)
         }
@@ -245,6 +251,7 @@ struct ActionBar: View {
                 Button(role: .cancel) { model.cancel() } label: {
                     Text("Stop").frame(maxWidth: .infinity)
                 }
+                .accessibilityIdentifier("stopButton")
                 .buttonStyle(.bordered)
             } else {
                 Picker("Compression", selection: Binding(
@@ -266,6 +273,7 @@ struct ActionBar: View {
                          : "Compress \(model.selectedItems.count) videos").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("compressButton")
                 .disabled(model.selectedItems.isEmpty || model.isScanning)
             }
         }
@@ -365,6 +373,7 @@ struct AccessView: View {
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
             Button("Allow access to videos") { Task { await model.requestAccess() } }
+                .accessibilityIdentifier("allowAccess")
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
         }

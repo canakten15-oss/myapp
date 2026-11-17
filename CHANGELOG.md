@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.0 - 2026-11-17
+- Test report in Settings: size, savings, mode, quality score and time per video; shareable
+- UI test that taps through the whole app incl. the iOS permission and delete dialogs
+- CI builds an unsigned .ipa for sideloading
+
 ## 0.5.0 - 2026-11-16
 - Quality-target encoding: file size adapts to each video's content; automatic fallback to fixed bitrate on unsupported devices
 - Automatic quality check (SSIM on 6 sample frames); a copy that is visibly worse is discarded and the original kept
