@@ -224,7 +224,9 @@ struct DeleteOriginalsCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("\(model.pendingDeleteIDs.count) originals ready to delete")
+            Text(model.pendingDeleteIDs.count == 1
+                 ? "1 original ready to delete"
+                 : "\(model.pendingDeleteIDs.count) originals ready to delete")
                 .font(.headline)
             Text("Smaller copies are saved with the same date, place, favorite and albums. Deleting the originals frees \(Format.bytes(model.pendingDeleteBytes)). They stay in Recently Deleted for 30 days.")
                 .font(.footnote)
