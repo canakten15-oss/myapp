@@ -22,7 +22,8 @@ final class LibraryViewModel: ObservableObject {
     @Published private(set) var pendingDeleteBytes: Int64 = 0
 
     // Plain @Published + UserDefaults (@AppStorage does not refresh views inside an ObservableObject)
-    @Published var minSizeMB: Int = UserDefaults.standard.object(forKey: "minSizeMB") as? Int ?? 100 {
+    @Published var minSizeMB: Int = UserDefaults.standard.object(forKey: "minSizeMB") != nil
+        ? UserDefaults.standard.integer(forKey: "minSizeMB") : 100 {
         didSet { UserDefaults.standard.set(minSizeMB, forKey: "minSizeMB") }
     }
     @Published var qualityRaw: String = UserDefaults.standard.string(forKey: "quality")

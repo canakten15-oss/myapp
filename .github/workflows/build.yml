@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
@@ -97,3 +100,15 @@ jobs:
         with:
           name: test-screenshots
           path: screenshots
+
+      - name: Publish .ipa + screenshots to the ci-output branch
+        if: always()
+        run: |
+          mkdir -p out && cp *.ipa out/ 2>/dev/null || true
+          cp -R screenshots out/ 2>/dev/null || true
+          grep -E "\[TEST\]|error:|Test Case.*(passed|failed|skipped)" test.log | sort -u > out/test-summary.txt 2>/dev/null || true
+          cd out
+          git init -q -b ci-output
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add -A && git commit -qm "CI output for ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" ci-output
