@@ -1,0 +1,7 @@
+clip,level,mode,in_bytes,out_bytes,ssim_app,seconds
+crowd_run,maxSavings,bitrate,16847002,4796349,0.9647,429.5
+crowd_run,bestQuality,bitrate,16847002,8838623,0.9833,638.8
+in_to_tree,maxSavings,quality,16820579,11680047,0.9936,226.9
+in_to_tree,bestQuality,bitrate,16820579,8495986,0.9911,379.7
+old_town_cross,maxSavings,quality,16842531,6740198,0.9955,128.7
+old_town_cross,bestQuality,bitrate,16842531,8803449,0.9957,374.7

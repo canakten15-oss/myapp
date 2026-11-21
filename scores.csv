@@ -1,0 +1,7 @@
+clip,level,vmaf,ssim_full,psnr
+crowd_run,bestQuality,66.75,0.902158,30.964622
+crowd_run,maxSavings,47.38,0.845219,28.567654
+in_to_tree,bestQuality,83.75,0.946181,37.987808
+in_to_tree,maxSavings,87.63,0.956488,38.928736
+old_town_cross,bestQuality,92.5,0.975081,40.422143
+old_town_cross,maxSavings,91.29,0.971424,39.841376
