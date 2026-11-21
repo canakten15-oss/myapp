@@ -30,10 +30,38 @@ final class VideoCompressor {
     /// Discard copies below the quality threshold (off only for benchmarks that inspect every result).
     var enforceQualityCheck = true
 
+    /// Thrown internally when the result is not small enough.
+    private struct NotSmallEnough: Error { let usedQualityMode: Bool }
+
     func compress(
         asset: AVAsset,
         originalBytes: Int64,
         quality: CompressionQuality,
+        progress: @escaping (Double) -> Void
+    ) async throws -> Outcome {
+        do {
+            return try await encode(asset: asset, originalBytes: originalBytes, quality: quality,
+                                    allowQualityMode: true, progress: progress)
+        } catch let e as NotSmallEnough where e.usedQualityMode {
+            // Quality mode can spend MORE bits than the original on very busy footage.
+            // Retry with a hard bitrate ceiling; the quality check then decides if that's acceptable.
+            progress(0)
+            do {
+                return try await encode(asset: asset, originalBytes: originalBytes, quality: quality,
+                                        allowQualityMode: false, progress: progress)
+            } catch is NotSmallEnough {
+                return .alreadyEfficient
+            }
+        } catch is NotSmallEnough {
+            return .alreadyEfficient
+        }
+    }
+
+    private func encode(
+        asset: AVAsset,
+        originalBytes: Int64,
+        quality: CompressionQuality,
+        allowQualityMode: Bool,
         progress: @escaping (Double) -> Void
     ) async throws -> Outcome {
 
@@ -122,7 +150,7 @@ final class VideoCompressor {
         var bitrateProps = compression
         bitrateProps[AVVideoAverageBitRateKey] = bitrate
 
-        let useQualityMode = preferQualityMode
+        let useQualityMode = preferQualityMode && allowQualityMode
             && writer.canApply(outputSettings: settings(qualityProps), forMediaType: .video)
         let videoInput = AVAssetWriterInput(
             mediaType: .video,
@@ -215,7 +243,7 @@ final class VideoCompressor {
         }
         if originalBytes > 0 && Double(outBytes) > Double(originalBytes) * maxSizeRatio {
             try? FileManager.default.removeItem(at: outURL)
-            return .alreadyEfficient
+            throw NotSmallEnough(usedQualityMode: useQualityMode)
         }
 
         // ---- quality check: compare sample frames of original and copy
