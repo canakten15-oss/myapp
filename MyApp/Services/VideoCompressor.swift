@@ -82,15 +82,15 @@ final class VideoCompressor {
         throw AppError.qualityTooLow(lastScore)
     }
 
-    private struct Encoded {
+    struct Encoded {
         let url: URL
         let bytes: Int64
         let droppedAudio: Int
         let isHDR: Bool
     }
 
-    /// One HEVC encode at a fixed average bitrate.
-    private func encode(
+    /// One HEVC encode at a fixed average bitrate (internal so tests can make deliberately bad copies).
+    func encode(
         asset: AVAsset,
         bitrate: Int,
         progress: @escaping (Double) -> Void

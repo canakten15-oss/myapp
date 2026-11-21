@@ -140,12 +140,9 @@ final class CompressorTests: XCTestCase {
         XCTAssertLessThan(score, CompressionQuality.maxSavings.minSSIM, "quality check did not catch a bad copy")
     }
 
-    /// Produces a visibly bad copy (lowest export preset = tiny resolution, upscaled on compare).
+    /// Produces a visibly bad, blocky copy: same size, 0.3 Mbit/s.
     func degradedCopy(of url: URL) async throws -> URL {
-        let out = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mov")
-        let session = try XCTUnwrap(AVAssetExportSession(asset: AVURLAsset(url: url), presetName: AVAssetExportPresetLowQuality))
-        try await session.export(to: out, as: .mov)
-        return out
+        try await VideoCompressor().encode(asset: AVURLAsset(url: url), bitrate: 300_000, progress: { _ in }).url
     }
 }
 
