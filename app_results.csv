@@ -1,0 +1,13 @@
+clip,level,rung,in_bytes,out_bytes,ssim_app,seconds
+crowd_run,maxSavings,kept-original,8653187,0,0.8750,297.1
+crowd_run,bestQuality,kept-original,8653187,0,0.9093,294.4
+in_to_tree,maxSavings,kept-original,8699012,0,0.9215,205.1
+in_to_tree,bestQuality,kept-original,8699012,0,0.9458,185.7
+old_town_cross,maxSavings,rung0@4782k,8543081,3360239,0.9531,69.3
+old_town_cross,bestQuality,rung1@9565k,8543081,6662690,0.9747,145.8
+pedestrian_area,maxSavings,rung0@2943k,5258492,2073157,0.9665,49.3
+pedestrian_area,bestQuality,rung0@4626k,5258492,3281367,0.9751,70.9
+rush_hour,maxSavings,rung0@2866k,5120410,1868258,0.9727,46.2
+rush_hour,bestQuality,rung0@4504k,5120410,3190434,0.9788,74.4
+sunflower,maxSavings,rung0@2949k,5269172,1709696,0.9804,31.4
+sunflower,bestQuality,rung0@4635k,5269172,2993689,0.9834,51.3

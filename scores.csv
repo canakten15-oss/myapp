@@ -1,0 +1,9 @@
+clip,level,vmaf,ssim_full,psnr
+old_town_cross,bestQuality,93.6,0.980280,41.332042
+old_town_cross,maxSavings,90.33,0.971621,39.779491
+pedestrian_area,bestQuality,98.0,0.984177,42.586368
+pedestrian_area,maxSavings,94.09,0.978410,41.505717
+rush_hour,bestQuality,93.76,0.986289,43.885647
+rush_hour,maxSavings,88.23,0.982806,42.674467
+sunflower,bestQuality,94.78,0.986527,39.531263
+sunflower,maxSavings,92.81,0.983817,39.247793
