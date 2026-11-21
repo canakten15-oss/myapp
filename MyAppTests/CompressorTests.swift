@@ -140,9 +140,9 @@ final class CompressorTests: XCTestCase {
         XCTAssertLessThan(score, CompressionQuality.maxSavings.minSSIM, "quality check did not catch a bad copy")
     }
 
-    /// Produces a visibly bad, blocky copy: same size, 0.3 Mbit/s.
+    /// Produces a visibly bad, blocky copy: same size, 0.06 Mbit/s (the synthetic pattern is mostly flat, so it needs to be extreme).
     func degradedCopy(of url: URL) async throws -> URL {
-        try await VideoCompressor().encode(asset: AVURLAsset(url: url), bitrate: 300_000, progress: { _ in }).url
+        try await VideoCompressor().encode(asset: AVURLAsset(url: url), bitrate: 60_000, progress: { _ in }).url
     }
 }
 
