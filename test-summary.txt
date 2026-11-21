@@ -1,0 +1,14 @@
+[TEST] degraded ssim=0.9347968763007112
+[TEST] hdr_hlg Best quality mode=quality 7355477 -> 1602466 bytes (79% smaller) ssim=0.9994
+[TEST] portrait Best quality mode=quality 2790797 -> 1025067 bytes (64% smaller) ssim=0.9980
+[TEST] sdr_1080p Best quality mode=bitrate 7775326 -> 2631063 bytes (67% smaller) ssim=0.9993
+[TEST] sdr_1080p Best quality mode=quality 7775326 -> 2739723 bytes (65% smaller) ssim=0.9994
+[TEST] sdr_1080p Max savings mode=quality 7775326 -> 1490426 bytes (81% smaller) ssim=0.9987
+Test Case '-[MyAppTests.BenchTests testBenchmark]' skipped (0.019 seconds).
+Test Case '-[MyAppTests.CompressorTests testFallbackBitrateMode]' passed (31.486 seconds).
+Test Case '-[MyAppTests.CompressorTests testHDRStaysHDR]' passed (33.725 seconds).
+Test Case '-[MyAppTests.CompressorTests testPortraitOrientationKept]' passed (13.058 seconds).
+Test Case '-[MyAppTests.CompressorTests testQualityCheckScores]' passed (7.128 seconds).
+Test Case '-[MyAppTests.CompressorTests testSDRBothLevels]' passed (60.054 seconds).
+Test Case '-[MyAppTests.LibraryTests testEndToEndBatch]' skipped (0.148 seconds).
+Test Case '-[MyAppUITests.FlowUITests testFullFlow]' passed (80.840 seconds).
