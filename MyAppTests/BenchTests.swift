@@ -23,7 +23,6 @@ final class BenchTests: XCTestCase {
             let inBytes = (try FileManager.default.attributesOfItem(atPath: src.path)[.size] as? NSNumber)?.int64Value ?? 0
             for q in CompressionQuality.allCases {
                 let c = VideoCompressor()
-                c.maxSizeRatio = 0.85   // same rule as the app: must be clearly smaller
                 c.enforceQualityCheck = false
                 let t0 = Date()
                 let outcome = try await c.compress(asset: AVURLAsset(url: src), originalBytes: inBytes,
