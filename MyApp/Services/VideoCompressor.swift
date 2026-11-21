@@ -23,9 +23,12 @@ final class VideoCompressor {
     }
 
     /// Only accept the result if it is at most this fraction of the original size.
+    /// (Benchmarks set this to 1 to keep every result.)
     var maxSizeRatio = 0.8
     /// Use the encoder's quality target when the device supports it (else fixed bitrate).
     var preferQualityMode = true
+    /// Discard copies below the quality threshold (off only for benchmarks that inspect every result).
+    var enforceQualityCheck = true
 
     func compress(
         asset: AVAsset,
@@ -221,7 +224,7 @@ final class VideoCompressor {
         #if DEBUG
         print("[compress] mode=\(useQualityMode ? "quality" : "bitrate") ssim=\(similarity ?? -1) size=\(outBytes)/\(originalBytes)")
         #endif
-        if let similarity, similarity < quality.minSSIM {
+        if enforceQualityCheck, let similarity, similarity < quality.minSSIM {
             try? FileManager.default.removeItem(at: outURL)
             throw AppError.qualityTooLow(similarity)
         }

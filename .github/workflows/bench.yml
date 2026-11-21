@@ -1,0 +1,89 @@
+name: Quality benchmark (real footage)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bench:
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Tools
+        run: |
+          XC=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1); sudo xcode-select -s "$XC"
+          brew install xcodegen ffmpeg
+          ffmpeg -hide_banner -filters 2>/dev/null | grep -q libvmaf && echo "VMAF=1" >> $GITHUB_ENV || echo "VMAF=0" >> $GITHUB_ENV
+
+      - name: Download real footage (Xiph.org test sequences, 1080p50, 10 s each)
+        run: |
+          mkdir -p raw bench
+          for c in old_town_cross in_to_tree crowd_run; do
+            curl -sSfL -o raw/$c.y4m https://media.xiph.org/video/derf/y4m/${c}_1080p50.y4m
+            ls -la raw/$c.y4m
+          done
+
+      - name: Turn them into iPhone-like files (HEVC hardware, ~iPhone 1080p60 bitrate)
+        run: |
+          for f in raw/*.y4m; do
+            n=$(basename $f .y4m)
+            ffmpeg -v error -y -i $f -c:v hevc_videotoolbox -b:v 13M -tag:v hvc1 -pix_fmt nv12 bench/$n.mov
+            # lossless-ish reference of the SAME iPhone-like file for scoring
+            ls -la bench/$n.mov
+          done
+          rm -rf raw
+
+      - name: Build tests
+        run: |
+          xcodegen generate
+          set -o pipefail
+          xcodebuild build-for-testing -project MyApp.xcodeproj -scheme MyApp \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath build \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= | xcbeautify
+
+      - name: Run benchmark in simulator
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json,sys
+          d=json.load(sys.stdin)["devices"]
+          c=[(r,x) for r,l in d.items() if "iOS" in r for x in l if x["name"].startswith("iPhone")]
+          c.sort(key=lambda t:(t[0],"Pro" in t[1]["name"])); print(c[-1][1]["udid"])')
+          xcrun simctl boot "$UDID"; xcrun simctl bootstatus "$UDID" -b
+          set -o pipefail
+          TEST_RUNNER_BENCH_DIR="$PWD/bench" xcodebuild test-without-building \
+            -project MyApp.xcodeproj -scheme MyApp -destination "id=$UDID" -derivedDataPath build \
+            -only-testing:MyAppTests/BenchTests \
+            -test-timeouts-enabled YES -maximum-test-execution-time-allowance 3000 \
+            2>&1 | tee bench.log | grep -E "\[BENCH\]|error|passed|failed"
+
+      - name: Score with VMAF / SSIM / PSNR and make crops
+        run: |
+          cd bench
+          echo "clip,level,vmaf,ssim_full,psnr" > scores.csv
+          mkdir -p crops
+          for o in out/*.mov; do
+            b=$(basename $o .mov); clip=${b%%__*}; level=${b##*__}
+            if [ "$VMAF" = 1 ]; then
+              ffmpeg -v error -i $o -i $clip.mov -lavfi "[0:v][1:v]libvmaf=log_fmt=json:log_path=vmaf.json:n_threads=4" -f null -
+              V=$(python3 -c "import json;print(round(json.load(open('vmaf.json'))['pooled_metrics']['vmaf']['mean'],2))")
+            else V=NA; fi
+            S=$(ffmpeg -i $o -i $clip.mov -lavfi ssim -f null - 2>&1 | sed -n 's/.*All:\([0-9.]*\).*/\1/p' | tail -1)
+            P=$(ffmpeg -i $o -i $clip.mov -lavfi psnr -f null - 2>&1 | sed -n 's/.*average:\([0-9.inf]*\).*/\1/p' | tail -1)
+            echo "$clip,$level,$V,$S,$P" | tee -a scores.csv
+            ffmpeg -v error -y -ss 4 -i $o -frames:v 1 -vf "crop=640:360:640:360" crops/${clip}__${level}.png
+          done
+          for c in *.mov; do n=$(basename $c .mov); ffmpeg -v error -y -ss 4 -i $c -frames:v 1 -vf "crop=640:360:640:360" crops/${n}__original.png; done
+
+      - name: Publish to bench-output branch
+        if: always()
+        run: |
+          mkdir -p pub && cp bench/out/app_results.csv bench/scores.csv pub/ 2>/dev/null || true
+          cp -R bench/crops pub/ 2>/dev/null || true
+          grep "\[BENCH\]" bench.log > pub/bench-log.txt 2>/dev/null || true
+          cd pub && git init -q -b bench-output && git config user.name github-actions && git config user.email actions@github.com
+          git add -A && git commit -qm "bench ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" bench-output
