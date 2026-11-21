@@ -132,10 +132,12 @@ final class CompressorTests: XCTestCase {
         let same = try await XCTUnwrapAsync(await QualityCheck.similarity(original: src, compressed: src))
         XCTAssertGreaterThan(same, 0.999, "identical video should score ~1")
 
-        // A heavily degraded copy must fail both thresholds
-        let bad = try await degradedCopy(of: try fixture("sdr_1080p"))
+        // A heavily degraded copy of a DETAILED clip must fail both thresholds
+        // (flat synthetic patterns stay clean even at tiny bitrates)
+        let detail = AVURLAsset(url: try fixture("detail"))
+        let bad = try await degradedCopy(of: try fixture("detail"))
         defer { try? FileManager.default.removeItem(at: bad) }
-        let score = try await XCTUnwrapAsync(await QualityCheck.similarity(original: src, compressed: AVURLAsset(url: bad)))
+        let score = try await XCTUnwrapAsync(await QualityCheck.similarity(original: detail, compressed: AVURLAsset(url: bad)))
         print("[TEST] degraded ssim=\(score)")
         XCTAssertLessThan(score, CompressionQuality.maxSavings.minSSIM, "quality check did not catch a bad copy")
     }
