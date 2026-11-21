@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.0 - 2026-11-21
+- Bitrate ladder replaces quality mode: smallest rung first, one retry higher, otherwise keep the original
+- Quality check at full resolution (was 360 px), 10 frames, worst frame weighted in
+- Best quality always spends more bits than Max savings
+- Real-footage benchmark with VMAF (bench.yml)
+
 ## 0.6.0 - 2026-11-17
 - Test report in Settings: size, savings, mode, quality score and time per video; shareable
 - UI test that taps through the whole app incl. the iOS permission and delete dialogs

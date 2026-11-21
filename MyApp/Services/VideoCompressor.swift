@@ -12,7 +12,9 @@ final class VideoCompressor {
         let inputBytes: Int64
         let outputBytes: Int64
         let droppedAudioTracks: Int
-        let usedQualityMode: Bool
+        /// 0 = first rung of the ladder, 1 = retried at a higher bitrate
+        let rung: Int
+        let bitrate: Int
         let similarity: Double
         let isHDR: Bool
     }
@@ -23,54 +25,83 @@ final class VideoCompressor {
     }
 
     /// Only accept the result if it is at most this fraction of the original size.
-    /// (Benchmarks set this to 1 to keep every result.)
     var maxSizeRatio = 0.8
-    /// Use the encoder's quality target when the device supports it (else fixed bitrate).
-    var preferQualityMode = true
     /// Discard copies below the quality threshold (off only for benchmarks that inspect every result).
     var enforceQualityCheck = true
 
-    /// Thrown internally when the result is not small enough.
-    private struct NotSmallEnough: Error { let usedQualityMode: Bool }
+    /// Sources below this many bits per pixel per frame are already efficient (e.g. messenger videos).
+    static let efficientSourceBPP = 0.05
 
+    /// Bitrate ladder: try the smallest rung first; if the quality check fails,
+    /// retry one rung up; if every rung fails, the original is kept.
     func compress(
         asset: AVAsset,
         originalBytes: Int64,
         quality: CompressionQuality,
         progress: @escaping (Double) -> Void
     ) async throws -> Outcome {
-        do {
-            return try await encode(asset: asset, originalBytes: originalBytes, quality: quality,
-                                    allowQualityMode: true, progress: progress)
-        } catch let e as NotSmallEnough where e.usedQualityMode {
-            // Quality mode can spend MORE bits than the original on very busy footage.
-            // Retry with a hard bitrate ceiling; the quality check then decides if that's acceptable.
+        guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw AppError.noVideoTrack }
+        let (size, fps) = try await track.load(.naturalSize, .nominalFrameRate)
+        let dataRate = try await track.load(.estimatedDataRate)
+        let pixelsPerSecond = abs(size.width * size.height) * Double(fps > 0 ? fps : 30)
+        let source = Double(dataRate)
+
+        let bitrates: [Int]
+        if source > 0 {
+            if source / pixelsPerSecond < Self.efficientSourceBPP { return .alreadyEfficient }
+            bitrates = quality.bitrateRatios.map { Int(source * $0) }
+        } else {
+            // unknown source rate: fall back to bits-per-pixel targets
+            bitrates = quality.fallbackBPP.map { Int(pixelsPerSecond * $0) }
+        }
+
+        var lastScore = 0.0
+        for (rung, bitrate) in bitrates.enumerated() {
             progress(0)
-            do {
-                return try await encode(asset: asset, originalBytes: originalBytes, quality: quality,
-                                        allowQualityMode: false, progress: progress)
-            } catch is NotSmallEnough {
+            let encoded = try await encode(asset: asset, bitrate: bitrate, progress: progress)
+
+            if originalBytes > 0 && Double(encoded.bytes) > Double(originalBytes) * maxSizeRatio {
+                // higher rungs would only be bigger
+                try? FileManager.default.removeItem(at: encoded.url)
                 return .alreadyEfficient
             }
-        } catch is NotSmallEnough {
-            return .alreadyEfficient
+
+            progress(1)
+            let score = await QualityCheck.similarity(original: asset, compressed: AVURLAsset(url: encoded.url))
+            #if DEBUG
+            print("[compress] rung=\(rung) bitrate=\(bitrate) ssim=\(score ?? -1) size=\(encoded.bytes)/\(originalBytes)")
+            #endif
+            if !enforceQualityCheck || score == nil || score! >= quality.minSSIM {
+                return .compressed(Result(url: encoded.url, inputBytes: originalBytes, outputBytes: encoded.bytes,
+                                          droppedAudioTracks: encoded.droppedAudio, rung: rung, bitrate: bitrate,
+                                          similarity: score ?? 1, isHDR: encoded.isHDR))
+            }
+            lastScore = score!
+            try? FileManager.default.removeItem(at: encoded.url)
         }
+        throw AppError.qualityTooLow(lastScore)
     }
 
+    private struct Encoded {
+        let url: URL
+        let bytes: Int64
+        let droppedAudio: Int
+        let isHDR: Bool
+    }
+
+    /// One HEVC encode at a fixed average bitrate.
     private func encode(
         asset: AVAsset,
-        originalBytes: Int64,
-        quality: CompressionQuality,
-        allowQualityMode: Bool,
+        bitrate: Int,
         progress: @escaping (Double) -> Void
-    ) async throws -> Outcome {
+    ) async throws -> Encoded {
 
         // ---- inspect source
         guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
             throw AppError.noVideoTrack
         }
         let (naturalSize, transform) = try await videoTrack.load(.naturalSize, .preferredTransform)
-        let (fps, dataRate) = try await videoTrack.load(.nominalFrameRate, .estimatedDataRate)
+        let fps = try await videoTrack.load(.nominalFrameRate)
         let (characteristics, formats) = try await videoTrack.load(.mediaCharacteristics, .formatDescriptions)
         let (duration, metadata) = try await asset.load(.duration, .metadata)
         let audioTracks = try await asset.loadTracks(withMediaType: .audio)
@@ -84,15 +115,10 @@ final class VideoCompressor {
         let width = Int(abs(naturalSize.width))
         let height = Int(abs(naturalSize.height))
         let frameRate = Double(fps > 0 ? fps : 30)
-        var bitrate = Int(Double(width * height) * max(frameRate, 24) * quality.bitsPerPixel)
-        let sourceBitrate = Int(dataRate)
-        if sourceBitrate > 0 {
-            if Double(bitrate) > Double(sourceBitrate) * 0.75 { return .alreadyEfficient }
-            bitrate = min(bitrate, Int(Double(sourceBitrate) * 0.6))
-        }
 
         // ---- free space check (output is at most ~ the original size)
-        try Self.ensureFreeSpace(atLeast: originalBytes + 200_000_000)
+        let estimatedBytes = Int64(Double(bitrate) / 8 * max(duration.seconds, 1))
+        try Self.ensureFreeSpace(atLeast: estimatedBytes * 2 + 200_000_000)
 
         // ---- reader
         let reader = try AVAssetReader(asset: asset)
@@ -115,8 +141,6 @@ final class VideoCompressor {
         writer.metadata = metadata
         writer.shouldOptimizeForNetworkUse = true
 
-        // Rate control: prefer a QUALITY target (calm clips get small, busy clips keep detail).
-        // Fall back to the fixed bitrate on devices/encoders that reject the quality key.
         var compression: [String: Any] = [
             AVVideoExpectedSourceFrameRateKey: frameRate,
             AVVideoMaxKeyFrameIntervalDurationKey: 2,
@@ -136,26 +160,14 @@ final class VideoCompressor {
                 AVVideoTransferFunctionKey: AVVideoTransferFunction_ITU_R_709_2,
                 AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_709_2,
             ]
-        func settings(_ props: [String: Any]) -> [String: Any] {
-            [
-                AVVideoCodecKey: AVVideoCodecType.hevc,
-                AVVideoWidthKey: width,
-                AVVideoHeightKey: height,
-                AVVideoCompressionPropertiesKey: props,
-                AVVideoColorPropertiesKey: colorProperties,
-            ]
-        }
-        var qualityProps = compression
-        qualityProps[AVVideoQualityKey] = quality.encoderQuality
-        var bitrateProps = compression
-        bitrateProps[AVVideoAverageBitRateKey] = bitrate
-
-        let useQualityMode = preferQualityMode && allowQualityMode
-            && writer.canApply(outputSettings: settings(qualityProps), forMediaType: .video)
-        let videoInput = AVAssetWriterInput(
-            mediaType: .video,
-            outputSettings: settings(useQualityMode ? qualityProps : bitrateProps)
-        )
+        compression[AVVideoAverageBitRateKey] = bitrate
+        let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: [
+            AVVideoCodecKey: AVVideoCodecType.hevc,
+            AVVideoWidthKey: width,
+            AVVideoHeightKey: height,
+            AVVideoCompressionPropertiesKey: compression,
+            AVVideoColorPropertiesKey: colorProperties,
+        ])
         videoInput.transform = transform
         videoInput.expectsMediaDataInRealTime = false
         guard writer.canAdd(videoInput) else { throw AppError.writerFailed("writer rejected HEVC settings") }
@@ -241,25 +253,7 @@ final class VideoCompressor {
             try? FileManager.default.removeItem(at: outURL)
             throw AppError.verifyFailed("Length changed - result discarded")
         }
-        if originalBytes > 0 && Double(outBytes) > Double(originalBytes) * maxSizeRatio {
-            try? FileManager.default.removeItem(at: outURL)
-            throw NotSmallEnough(usedQualityMode: useQualityMode)
-        }
-
-        // ---- quality check: compare sample frames of original and copy
-        progress(1)
-        let similarity = await QualityCheck.similarity(original: asset, compressed: AVURLAsset(url: outURL))
-        #if DEBUG
-        print("[compress] mode=\(useQualityMode ? "quality" : "bitrate") ssim=\(similarity ?? -1) size=\(outBytes)/\(originalBytes)")
-        #endif
-        if enforceQualityCheck, let similarity, similarity < quality.minSSIM {
-            try? FileManager.default.removeItem(at: outURL)
-            throw AppError.qualityTooLow(similarity)
-        }
-
-        return .compressed(Result(url: outURL, inputBytes: originalBytes, outputBytes: outBytes,
-                                  droppedAudioTracks: dropped, usedQualityMode: useQualityMode,
-                                  similarity: similarity ?? 1, isHDR: isHDR))
+        return Encoded(url: outURL, bytes: outBytes, droppedAudio: dropped, isHDR: isHDR)
     }
 
     // MARK: helpers

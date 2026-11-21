@@ -37,18 +37,17 @@ final class CompressorTests: XCTestCase {
         return out
     }
 
-    func compress(_ name: String, _ quality: CompressionQuality, qualityMode: Bool = true,
+    func compress(_ name: String, _ quality: CompressionQuality,
                   file: StaticString = #filePath, line: UInt = #line) async throws -> (VideoCompressor.Result, AVURLAsset) {
         let src = name == "sdr_1080p" ? try await iPhoneStyle(name) : try fixture(name)
         let compressor = VideoCompressor()
-        compressor.preferQualityMode = qualityMode
         let outcome = try await compressor.compress(
             asset: AVURLAsset(url: src), originalBytes: bytes(src), quality: quality, progress: { _ in })
         guard case .compressed(let result) = outcome else {
             XCTFail("\(name) was skipped as already efficient", file: file, line: line)
             throw XCTSkip("no output")
         }
-        print("[TEST] \(name) \(quality.label) mode=\(result.usedQualityMode ? "quality" : "bitrate") "
+        print("[TEST] \(name) \(quality.label) rung=\(result.rung) \(result.bitrate / 1000) kbit/s "
               + "\(result.inputBytes) -> \(result.outputBytes) bytes "
               + "(\(100 - result.outputBytes * 100 / max(result.inputBytes, 1))% smaller) ssim=\(String(format: "%.4f", result.similarity))")
         return (result, AVURLAsset(url: result.url))
@@ -80,11 +79,21 @@ final class CompressorTests: XCTestCase {
         }
     }
 
-    func testFallbackBitrateMode() async throws {
-        let (r, _) = try await compress("sdr_1080p", .bestQuality, qualityMode: false)
-        defer { try? FileManager.default.removeItem(at: r.url) }
-        XCTAssertFalse(r.usedQualityMode)
-        XCTAssertLessThan(r.outputBytes, r.inputBytes * 8 / 10)
+    func testSizeRuleNeverKeepsABigCopy() async throws {
+        let src = try fixture("sdr_1080p")
+        let strict = VideoCompressor()
+        strict.maxSizeRatio = 0.01   // impossible: copy can never be 99% smaller
+        let outcome = try await strict.compress(asset: AVURLAsset(url: src), originalBytes: bytes(src),
+                                                quality: .bestQuality, progress: { _ in })
+        if case .compressed = outcome { XCTFail("kept a copy that broke the size rule") }
+    }
+
+    func testBestIsBetterThanMax() async throws {
+        let (best, _) = try await compress("sdr_1080p", .bestQuality)
+        let (maxS, _) = try await compress("sdr_1080p", .maxSavings)
+        defer { try? FileManager.default.removeItem(at: best.url); try? FileManager.default.removeItem(at: maxS.url) }
+        XCTAssertGreaterThan(best.outputBytes, maxS.outputBytes, "Best quality must spend more bits than Max savings")
+        XCTAssertGreaterThanOrEqual(best.similarity, maxS.similarity - 0.001)
     }
 
     func testHDRStaysHDR() async throws {

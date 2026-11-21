@@ -49,31 +49,30 @@ enum CompressionQuality: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Target bits per pixel per frame for HEVC.
-    var bitsPerPixel: Double {
+    /// Bitrate ladder as a share of the source bitrate: first rung, then one retry if the
+    /// quality check fails. Calibrated with the real-footage benchmark (bench.yml).
+    var bitrateRatios: [Double] {
         switch self {
-        case .maxSavings: return 0.035
-        case .bestQuality: return 0.065
+        case .maxSavings: return [0.35, 0.50]
+        case .bestQuality: return [0.55, 0.70]
         }
     }
 
-    /// Quality target for the hardware encoder (0...1, AVVideoQualityKey).
-    /// Starting values, to be calibrated on real iPhone footage.
-    var encoderQuality: Double {
+    /// Bits per pixel per frame, used only when the source bitrate is unknown.
+    var fallbackBPP: [Double] {
         switch self {
-        case .maxSavings: return 0.55
-        case .bestQuality: return 0.70
+        case .maxSavings: return [0.035, 0.05]
+        case .bestQuality: return [0.055, 0.07]
         }
     }
 
-    /// Minimum similarity (SSIM, 0...1) between original and copy, measured on sample frames.
-    /// Below this the copy is discarded and the original stays untouched.
-    /// Measured at 360 px width, so it catches visible damage, not lost film grain.
-    /// Starting values from desktop tests; calibrate on real iPhone clips.
+    /// Minimum similarity (SSIM on luma at FULL resolution, 10 frames) between original and copy.
+    /// Below this the rung is rejected; if all rungs fail, the original is kept.
+    /// Benchmark: full-res SSIM 0.975 ≈ VMAF 92, 0.946 ≈ VMAF 84, 0.902 ≈ VMAF 67.
     var minSSIM: Double {
         switch self {
-        case .maxSavings: return 0.96
-        case .bestQuality: return 0.975
+        case .maxSavings: return 0.95
+        case .bestQuality: return 0.97
         }
     }
 

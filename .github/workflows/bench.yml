@@ -22,16 +22,20 @@ jobs:
       - name: Download real footage (Xiph.org test sequences, 1080p50, 10 s each)
         run: |
           mkdir -p raw bench
-          for c in old_town_cross in_to_tree crowd_run; do
-            curl -sSfL -o raw/$c.y4m https://media.xiph.org/video/derf/y4m/${c}_1080p50.y4m
-            ls -la raw/$c.y4m
+          for c in old_town_cross pedestrian_area in_to_tree sunflower rush_hour crowd_run; do
+            curl -sSfL -o raw/$c.y4m https://media.xiph.org/video/derf/y4m/${c}_1080p25.y4m \
+              || curl -sSfL -o raw/$c.y4m https://media.xiph.org/video/derf/y4m/${c}_1080p50.y4m \
+              || { echo "missing $c"; rm -f raw/$c.y4m; }
+            ls -la raw/$c.y4m 2>/dev/null || true
           done
 
       - name: Turn them into iPhone-like files (HEVC hardware, ~iPhone 1080p60 bitrate)
         run: |
           for f in raw/*.y4m; do
             n=$(basename $f .y4m)
-            ffmpeg -v error -y -i $f -c:v hevc_videotoolbox -b:v 13M -tag:v hvc1 -pix_fmt nv12 bench/$n.mov
+            # first 5 s; iPhone-like rate: 13 Mbit/s at 50 fps, 8 Mbit/s at 25 fps (≈ iPhone 1080p60 / 1080p30)
+            R=$(head -c 200 $f | grep -q "F25:1" && echo 8M || echo 13M)
+            ffmpeg -v error -y -i $f -t 5 -c:v hevc_videotoolbox -b:v $R -tag:v hvc1 -pix_fmt nv12 bench/$n.mov
             # lossless-ish reference of the SAME iPhone-like file for scoring
             ls -la bench/$n.mov
           done
@@ -74,9 +78,9 @@ jobs:
             S=$(ffmpeg -i $o -i $clip.mov -lavfi ssim -f null - 2>&1 | sed -n 's/.*All:\([0-9.]*\).*/\1/p' | tail -1)
             P=$(ffmpeg -i $o -i $clip.mov -lavfi psnr -f null - 2>&1 | sed -n 's/.*average:\([0-9.inf]*\).*/\1/p' | tail -1)
             echo "$clip,$level,$V,$S,$P" | tee -a scores.csv
-            ffmpeg -v error -y -ss 4 -i $o -frames:v 1 -vf "crop=640:360:640:360" crops/${clip}__${level}.png
+            ffmpeg -v error -y -ss 2.5 -i $o -frames:v 1 -vf "crop=640:360:640:360" crops/${clip}__${level}.png
           done
-          for c in *.mov; do n=$(basename $c .mov); ffmpeg -v error -y -ss 4 -i $c -frames:v 1 -vf "crop=640:360:640:360" crops/${n}__original.png; done
+          for c in *.mov; do n=$(basename $c .mov); ffmpeg -v error -y -ss 2.5 -i $c -frames:v 1 -vf "crop=640:360:640:360" crops/${n}__original.png; done
 
       - name: Publish to bench-output branch
         if: always()

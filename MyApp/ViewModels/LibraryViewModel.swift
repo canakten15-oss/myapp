@@ -157,7 +157,7 @@ final class LibraryViewModel: ObservableObject {
                 let pct = result.inputBytes > 0 ? 100 - Int(result.outputBytes * 100 / result.inputBytes) : 0
                 log("\(Format.bytes(result.inputBytes)) → \(Format.bytes(result.outputBytes)) (−\(pct)%)"
                     + (result.isHDR ? " · HDR" : "")
-                    + " · \(result.usedQualityMode ? "quality" : "bitrate") mode"
+                    + " · rung \(result.rung + 1) @ \(result.bitrate / 1_000_000) Mbit/s"
                     + String(format: " · SSIM %.3f", result.similarity)
                     + (result.droppedAudioTracks > 0 ? " · dropped \(result.droppedAudioTracks) audio" : ""))
                 lastBatchSaved += saved
