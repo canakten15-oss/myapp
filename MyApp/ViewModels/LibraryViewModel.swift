@@ -77,6 +77,8 @@ final class LibraryViewModel: ObservableObject {
     var pendingDeleteIDs: [String] { shrunk.filter { !$0.originalDeleted }.map(\.originalID) }
     var pendingDeleteBytes: Int64 { shrunk.filter { !$0.originalDeleted }.reduce(0) { $0 + $1.inputBytes } }
     var pendingSavedBytes: Int64 { shrunk.filter { !$0.originalDeleted }.reduce(0) { $0 + $1.savedBytes } }
+    /// Really freed: only counts once the original is gone.
+    var freedBytes: Int64 { shrunk.filter(\.originalDeleted).reduce(0) { $0 + $1.savedBytes } }
 
     // MARK: access + scan
 
@@ -250,7 +252,6 @@ final class LibraryViewModel: ObservableObject {
                 save(shrunk, key: "shrunkRecords")
                 let saved = result.inputBytes - result.outputBytes
                 lastBatchSaved += saved
-                totalSavedBytes += Double(saved)
                 log("\(Format.bytes(result.inputBytes)) → \(Format.bytes(result.outputBytes)) (−\(record.savedPercent)%)"
                     + (result.isHDR ? " · HDR" : "")
                     + " · rung \(result.rung + 1) @ \(result.bitrate / 1_000_000) Mbit/s"

@@ -9,7 +9,7 @@ MyApp re-encodes large videos to HEVC on your iPhone's own hardware encoder. It 
 - Never touches edited/trimmed, slo-mo, time-lapse or shared videos
 - Free and open source. Ads appear only while videos are compressing: a small banner under the progress bar, plus an optional "play something while you wait" button. Never forced full screen, never before or after a job
 
-> Status: **v0.5 prototype.** Not yet on the App Store.
+> Status: **v0.8 prototype.** Not yet on the App Store.
 
 ## How it works
 1. Lists videos above a size limit (default 100 MB), biggest first. **Nothing is selected and nothing runs until you pick videos and tap Compress**

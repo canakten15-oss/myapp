@@ -63,7 +63,7 @@ struct LibraryView: View {
 
     private var listView: some View {
         List {
-            if model.totalSavedBytes > 0 || !model.pendingDeleteIDs.isEmpty {
+            if model.freedBytes > 0 || !model.pendingDeleteIDs.isEmpty {
                 Section { OverviewCard() }
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
             }
@@ -129,11 +129,11 @@ struct OverviewCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if model.totalSavedBytes > 0 {
+            if model.freedBytes > 0 {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(Format.bytes(Int64(model.totalSavedBytes)))
+                    Text(Format.bytes(model.freedBytes))
                         .font(.system(.title, design: .rounded).weight(.bold))
-                    Text("saved so far").foregroundStyle(.secondary)
+                    Text("freed so far").foregroundStyle(.secondary)
                 }
             }
             if !model.pendingDeleteIDs.isEmpty {
