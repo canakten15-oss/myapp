@@ -11,28 +11,55 @@ enum QualityCheck {
 
     /// Average SSIM over sample frames, or nil if frames could not be read
     /// (then the check is skipped rather than blocking the user).
-    /// The score is the average, but one clearly bad frame pulls it down: we blend in the worst frame.
-    static func similarity(original: AVAsset, compressed: AVAsset) async -> Double? {
-        guard let duration = try? await original.load(.duration).seconds, duration > 0.5 else { return nil }
+    ///
+    /// Frame matching (v0.8): timestamps of original and copy can differ by a few ms
+    /// (iPhone videos often have a hidden lead-in / edit list). Picking "the frame at time t"
+    /// in both then sometimes compares NEIGHBOURING frames, which scored ~0.92 on real 4K60
+    /// footage and wrongly rejected good copies. So each original frame is compared with the
+    /// copy's frame at that time AND its two neighbours; the best match is the same frame.
+    ///
+    /// `originalOffset`: where the compressed clip starts in the original (for probe clips).
+    /// The score is 75% average + 25% worst frame, so a short bad moment isn't averaged away.
+    static func similarity(original: AVAsset, compressed: AVAsset,
+                           originalOffset: CMTime = .zero) async -> Double? {
+        guard var duration = try? await compressed.load(.duration).seconds, duration > 0.3 else { return nil }
+        var frameStep = 1.0 / 30
+        if let track = try? await original.loadTracks(withMediaType: .video).first,
+           let mfd = try? await track.load(.minFrameDuration), mfd.isValid, mfd.seconds > 0 {
+            frameStep = mfd.seconds
+        }
+
+        // Where the copy's own timeline starts (a piece may keep the original's timestamps).
+        var copyStart = 0.0
+        if let ct = try? await compressed.loadTracks(withMediaType: .video).first,
+           let range = try? await ct.load(.timeRange), range.start.isValid {
+            copyStart = range.start.seconds
+            if range.duration.isValid, range.duration.seconds > 0.3 { duration = range.duration.seconds }
+        }
+        // original time = copy time - copyStart + offset
+        let offset = originalOffset.seconds - copyStart
 
         let genA = makeGenerator(original)
         let genB = makeGenerator(compressed)
 
         var scores: [Double] = []
         for i in 0..<sampleCount {
-            // spread samples between 5% and 95% of the clip
-            let t = duration * (0.05 + 0.9 * Double(i) / Double(max(sampleCount - 1, 1)))
-            let time = CMTime(seconds: t, preferredTimescale: 600)
-            guard
-                let a = try? await genA.image(at: time).image,
-                let b = try? await genB.image(at: time).image,
-                let score = ssim(a, b)
+            // spread samples between 5% and 95% of the (compressed) clip
+            let t = copyStart + duration * (0.05 + 0.9 * Double(i) / Double(max(sampleCount - 1, 1)))
+            guard let a = try? await genA.image(at: CMTime(seconds: offset + t, preferredTimescale: 600)).image
             else { continue }
-            scores.append(score)
+            var best: Double?
+            for k in [0.0, -1.0, 1.0] {
+                let tb = max(copyStart, t + k * frameStep)
+                guard let b = try? await genB.image(at: CMTime(seconds: tb, preferredTimescale: 600)).image,
+                      let s = ssim(a, b) else { continue }
+                best = max(best ?? 0, s)
+                if s > 0.995 { break }   // clearly the same frame, no need to try neighbours
+            }
+            if let best { scores.append(best) }
         }
         guard scores.count >= sampleCount / 2, let worst = scores.min() else { return nil }
         let mean = scores.reduce(0, +) / Double(scores.count)
-        // 75% average, 25% worst frame: a short smeared moment (fast pan) is not averaged away.
         return 0.75 * mean + 0.25 * worst
     }
 

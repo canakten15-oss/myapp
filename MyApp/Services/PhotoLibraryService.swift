@@ -24,6 +24,13 @@ enum PhotoLibraryService {
         return (resource?.value(forKey: "fileSize") as? NSNumber)?.int64Value ?? 0
     }
 
+    /// False if the original only lives in iCloud and must be downloaded first (needs extra space).
+    static func isLocallyAvailable(_ asset: PHAsset) -> Bool {
+        let resources = PHAssetResource.assetResources(for: asset)
+        let resource = resources.first { $0.type == .video } ?? resources.first
+        return (resource?.value(forKey: "locallyAvailable") as? NSNumber)?.boolValue ?? true
+    }
+
     /// Edited/trimmed videos have extra resources; re-encoding the original would lose the edit.
     static func isEdited(_ asset: PHAsset) -> Bool {
         PHAssetResource.assetResources(for: asset).contains {
@@ -33,13 +40,14 @@ enum PhotoLibraryService {
 
     /// Videos worth compressing, biggest first. Call off the main thread.
     static func fetchCandidates(minBytes: Int64, excluding processed: Set<String>) -> [VideoItem] {
+        let copiesAlbum = compressedAlbumAssetIDs()
         let options = PHFetchOptions()
         options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)
         let result = PHAsset.fetchAssets(with: options)
 
         var items: [VideoItem] = []
         result.enumerateObjects { asset, _, _ in
-            if processed.contains(asset.localIdentifier) { return }
+            if processed.contains(asset.localIdentifier) || copiesAlbum.contains(asset.localIdentifier) { return }
             if asset.mediaSubtypes.contains(.videoHighFrameRate) { return }   // slo-mo
             if asset.mediaSubtypes.contains(.videoTimelapse) { return }
             if asset.sourceType.contains(.typeCloudShared) { return }
@@ -80,7 +88,8 @@ enum PhotoLibraryService {
     /// Imports the compressed file as a new asset with the original's date, location,
     /// favorite flag and album memberships. Returns the new asset's local identifier.
     static func saveCompressed(fileURL: URL, basedOn original: PHAsset) async throws -> String {
-        var albums: [PHAssetCollection] = []
+        let copiesAlbum = try await compressedAlbum()
+        var albums: [PHAssetCollection] = [copiesAlbum]
         PHAssetCollection.fetchAssetCollectionsContaining(original, with: .album, options: nil)
             .enumerateObjects { collection, _, _ in
                 if collection.canPerform(.addContent) { albums.append(collection) }
@@ -105,6 +114,46 @@ enum PhotoLibraryService {
             }
         }
         return newIdentifier.value
+    }
+
+    // MARK: "MyApp – compressed" album (every copy lands here too, for easy comparison)
+
+    static let compressedAlbumTitle = "MyApp – compressed"
+
+    static func compressedAlbum() async throws -> PHAssetCollection {
+        if let existing = findCompressedAlbum() { return existing }
+        let title = compressedAlbumTitle
+        let id = Box("")
+        try await PHPhotoLibrary.shared().performChanges {
+            id.value = PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: title)
+                .placeholderForCreatedAssetCollection.localIdentifier
+        }
+        guard let album = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [id.value], options: nil).firstObject
+        else { throw AppError.writerFailed("could not create album") }
+        return album
+    }
+
+    private static func findCompressedAlbum() -> PHAssetCollection? {
+        let opts = PHFetchOptions()
+        opts.predicate = NSPredicate(format: "localizedTitle == %@", compressedAlbumTitle)
+        return PHAssetCollection.fetchAssetCollections(with: .album, subtype: .albumRegular, options: opts).firstObject
+    }
+
+    private static func compressedAlbumAssetIDs() -> Set<String> {
+        guard let album = findCompressedAlbum() else { return [] }
+        var ids = Set<String>()
+        PHAsset.fetchAssets(in: album, options: nil).enumerateObjects { a, _, _ in ids.insert(a.localIdentifier) }
+        return ids
+    }
+
+    static func existingIDs(_ ids: [String]) -> Set<String> {
+        var out = Set<String>()
+        PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil).enumerateObjects { a, _, _ in out.insert(a.localIdentifier) }
+        return out
+    }
+
+    static func asset(_ id: String) -> PHAsset? {
+        PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject
     }
 
     // MARK: Delete

@@ -4,9 +4,8 @@ struct SettingsView: View {
     @EnvironmentObject private var model: LibraryViewModel
     @Environment(\.dismiss) private var dismiss
 
-    // TODO: point these at your repo / privacy page
-    private let repoURL = URL(string: "https://github.com/YOUR_USER/YOUR_REPO")!
-    private let privacyURL = URL(string: "https://github.com/YOUR_USER/YOUR_REPO/blob/main/PRIVACY.md")!
+    private let repoURL = URL(string: "https://github.com/canakten15-oss/myapp")!
+    private let privacyURL = URL(string: "https://github.com/canakten15-oss/myapp/blob/main/PRIVACY.md")!
 
     var body: some View {
         NavigationStack {
@@ -18,21 +17,14 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    if model.report.isEmpty {
-                        Text("Compress some videos, then share this report.").foregroundStyle(.secondary)
-                    } else {
-                        ForEach(model.report.prefix(30), id: \.self) { line in
-                            Text(line).font(.caption.monospaced())
-                        }
-                        ShareLink(item: model.reportText) {
-                            Label("Share report", systemImage: "square.and.arrow.up")
-                        }
-                        Button("Clear report", role: .destructive) { model.clearReport() }
+                    NavigationLink {
+                        ReportView()
+                    } label: {
+                        LabeledContent("Test report", value: "\(model.report.count)")
                     }
-                } header: {
-                    Text("Test report")
+                    .accessibilityIdentifier("testReportLink")
                 } footer: {
-                    Text("Size, savings, quality score and time for each video. No video content or location is included.")
+                    Text("Size, savings, quality score and time for each video. No video content or location.")
                 }
 
                 Section("About") {
@@ -43,8 +35,7 @@ struct SettingsView: View {
                             Task { await AdService.shared.showPrivacyOptions() }
                         }
                     }
-                    LabeledContent("Version",
-                                   value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "-")
+                    LabeledContent("Version", value: Self.version)
                 }
             }
             .navigationTitle("Settings")
@@ -57,6 +48,48 @@ struct SettingsView: View {
                     }
                 }
             }
+        }
+    }
+
+    static var version: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "-"
+        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "-"
+        return "\(v) (\(b))"
+    }
+}
+
+/// The test report as its own page, so a long list doesn't clutter Settings.
+struct ReportView: View {
+    @EnvironmentObject private var model: LibraryViewModel
+    @State private var confirmClear = false
+
+    var body: some View {
+        List {
+            if model.report.isEmpty {
+                Text("Compress some videos, then share this report.").foregroundStyle(.secondary)
+            } else {
+                ForEach(Array(model.report.enumerated()), id: \.offset) { _, line in
+                    Text(line)
+                        .font(.caption.monospaced())
+                        .textSelection(.enabled)
+                        .padding(.vertical, 2)
+                }
+            }
+        }
+        .navigationTitle("Test report")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if !model.report.isEmpty {
+                    ShareLink(item: model.reportText) { Image(systemName: "square.and.arrow.up") }
+                        .accessibilityLabel("Share report")
+                    Button(role: .destructive) { confirmClear = true } label: { Image(systemName: "trash") }
+                        .accessibilityLabel("Clear report")
+                }
+            }
+        }
+        .confirmationDialog("Clear the test report?", isPresented: $confirmClear, titleVisibility: .visible) {
+            Button("Clear report", role: .destructive) { model.clearReport() }
         }
     }
 }

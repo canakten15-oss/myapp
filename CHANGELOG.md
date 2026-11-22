@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.0 - 2026-11-22
+From the first real iPhone test (iPhone 16 Pro, 8 videos):
+- Quality check matches frames instead of timestamps: copies of videos with a hidden lead-in were compared against neighbouring frames and wrongly rejected (0.92–0.95 instead of ~0.98)
+- 3-second probe from the middle of the video picks the right step before the full encode; hopeless videos are skipped in seconds
+- No more "optimize for network use" rewrite: peak free space needed roughly halved (fixes "Disk Full" on a 4.8 GB video)
+- Honest free-space check before each video (incl. iCloud download); smallest videos first when space is tight; temp files cleaned on launch
+- List in three sections: To do / Shrunk / Can't shrink (remembered, swipe to try again)
+- Level, live savings estimate and Compress button together in the bottom bar
+- Timer: speed from the last 30 s, smooth countdown, no jump on a second pass; stage labels (Quick test, Compressing, Second try, Finishing, Checking, Saving)
+- Result screen after a batch with "Delete N originals"
+- Every copy also goes into the album "MyApp – compressed"
+- Test report is its own page; logs source fps/bitrate and every attempt
+- Version number shown correctly; sleeker look with one accent colour
+
 ## 0.7.0 - 2026-11-21
 - Bitrate ladder replaces quality mode: smallest rung first, one retry higher, otherwise keep the original
 - Quality check at full resolution (was 360 px), 10 frames, worst frame weighted in

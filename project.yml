@@ -29,8 +29,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.myapp   # TODO
-        MARKETING_VERSION: "0.7.0"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "0.8.0"
+        CURRENT_PROJECT_VERSION: "8"
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1,2"
         DEVELOPMENT_TEAM: ""                              # TODO: your Apple team ID
@@ -39,6 +39,8 @@ targets:
       path: MyApp/Info.plist
       properties:
         CFBundleDisplayName: MyApp
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false

@@ -24,27 +24,48 @@ final class VideoCompressor {
         case alreadyEfficient
     }
 
+    /// Progress events for the UI. Fractions are 0...1 within that step.
+    enum Event {
+        case probing(Double)
+        case encoding(rung: Int, Double)
+        case finishing
+        case checking
+    }
+
     /// Only accept the result if it is at most this fraction of the original size.
     var maxSizeRatio = 0.8
     /// Discard copies below the quality threshold (off only for benchmarks that inspect every result).
     var enforceQualityCheck = true
+    /// Test a short piece first to skip rungs (or the whole video) that can't pass.
+    var useProbe = true
+
+    /// Every attempt of the last compress() call, for the test report ("probe r1 0.981", "r1 0.968 ✗" …).
+    private(set) var attempts: [String] = []
+    /// Source facts of the last compress() call, for the test report.
+    private(set) var sourceInfo = ""
 
     /// Sources below this many bits per pixel per frame are already efficient (e.g. messenger videos).
     static let efficientSourceBPP = 0.05
+    static let probeSeconds = 3.0
 
     /// Bitrate ladder: try the smallest rung first; if the quality check fails,
     /// retry one rung up; if every rung fails, the original is kept.
+    /// With useProbe, a 3-second piece from the middle is tested first, so rungs that
+    /// can't pass are skipped without encoding the whole video.
     func compress(
         asset: AVAsset,
         originalBytes: Int64,
         quality: CompressionQuality,
-        progress: @escaping (Double) -> Void
+        progress: @escaping (Event) -> Void
     ) async throws -> Outcome {
+        attempts = []
         guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw AppError.noVideoTrack }
         let (size, fps) = try await track.load(.naturalSize, .nominalFrameRate)
         let dataRate = try await track.load(.estimatedDataRate)
+        let duration = try await asset.load(.duration)
         let pixelsPerSecond = abs(size.width * size.height) * Double(fps > 0 ? fps : 30)
         let source = Double(dataRate)
+        sourceInfo = String(format: "%.0f fps · %.0f Mbit/s", fps, source / 1_000_000)
 
         let bitrates: [Int]
         if source > 0 {
@@ -55,23 +76,46 @@ final class VideoCompressor {
             bitrates = quality.fallbackBPP.map { Int(pixelsPerSecond * $0) }
         }
 
+        let probing = useProbe && enforceQualityCheck && duration.seconds > Self.probeSeconds * 3
         var lastScore = 0.0
+        var encodedRungs = 0
         for (rung, bitrate) in bitrates.enumerated() {
-            progress(0)
-            let encoded = try await encode(asset: asset, bitrate: bitrate, progress: progress)
+            // ---- probe: a 3-second piece from the middle
+            if probing {
+                if let score = try await probe(asset: asset, duration: duration, bitrate: bitrate,
+                                               progress: { progress(.probing($0)) }) {
+                    let pass = score >= quality.minSSIM
+                    attempts.append(String(format: "probe r%d %.3f%@", rung + 1, score, pass ? "" : " ✗"))
+                    // a small margin: a piece can look slightly better than the whole video
+                    if score < quality.minSSIM - 0.003 {
+                        lastScore = score
+                        continue
+                    }
+                }
+            }
+
+            // ---- full encode
+            let encoded = try await encode(asset: asset, bitrate: bitrate, progress: {
+                progress(.encoding(rung: encodedRungs, $0))
+            })
+            encodedRungs += 1
+            progress(.finishing)
 
             if originalBytes > 0 && Double(encoded.bytes) > Double(originalBytes) * maxSizeRatio {
                 // higher rungs would only be bigger
                 try? FileManager.default.removeItem(at: encoded.url)
+                attempts.append("r\(rung + 1) not smaller")
                 return .alreadyEfficient
             }
 
-            progress(1)
+            progress(.checking)
             let score = await QualityCheck.similarity(original: asset, compressed: AVURLAsset(url: encoded.url))
+            let pass = !enforceQualityCheck || score == nil || score! >= quality.minSSIM
+            attempts.append(String(format: "r%d %.3f%@", rung + 1, score ?? -1, pass ? "" : " ✗"))
             #if DEBUG
             print("[compress] rung=\(rung) bitrate=\(bitrate) ssim=\(score ?? -1) size=\(encoded.bytes)/\(originalBytes)")
             #endif
-            if !enforceQualityCheck || score == nil || score! >= quality.minSSIM {
+            if pass {
                 return .compressed(Result(url: encoded.url, inputBytes: originalBytes, outputBytes: encoded.bytes,
                                           droppedAudioTracks: encoded.droppedAudio, rung: rung, bitrate: bitrate,
                                           similarity: score ?? 1, isHDR: encoded.isHDR))
@@ -80,6 +124,18 @@ final class VideoCompressor {
             try? FileManager.default.removeItem(at: encoded.url)
         }
         throw AppError.qualityTooLow(lastScore)
+    }
+
+    /// Encodes 3 s from the middle (video only) and returns its similarity, or nil if it couldn't be measured.
+    private func probe(asset: AVAsset, duration: CMTime, bitrate: Int,
+                       progress: @escaping (Double) -> Void) async throws -> Double? {
+        let start = CMTime(seconds: max(0, duration.seconds / 2 - Self.probeSeconds / 2), preferredTimescale: 600)
+        let range = CMTimeRange(start: start, duration: CMTime(seconds: Self.probeSeconds, preferredTimescale: 600))
+        let piece = try await encode(asset: asset, bitrate: bitrate, timeRange: range, includeAudio: false,
+                                     progress: progress)
+        defer { try? FileManager.default.removeItem(at: piece.url) }
+        return await QualityCheck.similarity(original: asset, compressed: AVURLAsset(url: piece.url),
+                                             originalOffset: start)
     }
 
     struct Encoded {
@@ -93,6 +149,8 @@ final class VideoCompressor {
     func encode(
         asset: AVAsset,
         bitrate: Int,
+        timeRange: CMTimeRange? = nil,
+        includeAudio: Bool = true,
         progress: @escaping (Double) -> Void
     ) async throws -> Encoded {
 
@@ -104,7 +162,7 @@ final class VideoCompressor {
         let fps = try await videoTrack.load(.nominalFrameRate)
         let (characteristics, formats) = try await videoTrack.load(.mediaCharacteristics, .formatDescriptions)
         let (duration, metadata) = try await asset.load(.duration, .metadata)
-        let audioTracks = try await asset.loadTracks(withMediaType: .audio)
+        let audioTracks = includeAudio ? try await asset.loadTracks(withMediaType: .audio) : []
 
         let isHDR = characteristics.contains(.containsHDRVideo)
         let transfer = formats.first.flatMap {
@@ -117,11 +175,13 @@ final class VideoCompressor {
         let frameRate = Double(fps > 0 ? fps : 30)
 
         // ---- free space check (output is at most ~ the original size)
-        let estimatedBytes = Int64(Double(bitrate) / 8 * max(duration.seconds, 1))
-        try Self.ensureFreeSpace(atLeast: estimatedBytes * 2 + 200_000_000)
+        let seconds = timeRange?.duration.seconds ?? duration.seconds
+        let estimatedBytes = Int64(Double(bitrate) / 8 * max(seconds, 1))
+        try Self.ensureFreeSpace(atLeast: Int64(Double(estimatedBytes) * 1.2) + 300_000_000)
 
         // ---- reader
         let reader = try AVAssetReader(asset: asset)
+        if let timeRange { reader.timeRange = timeRange }
         let pixelFormat = isHDR
             ? kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
             : kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
@@ -139,7 +199,9 @@ final class VideoCompressor {
             .appendingPathExtension("mov")
         let writer = try AVAssetWriter(outputURL: outURL, fileType: .mov)
         writer.metadata = metadata
-        writer.shouldOptimizeForNetworkUse = true
+        // No "optimize for network use": it rewrites the whole finished file once more,
+        // which doubled the free space needed (v0.7 test: "Disk Full" on a 4.8 GB video).
+        writer.shouldOptimizeForNetworkUse = false
 
         var compression: [String: Any] = [
             AVVideoExpectedSourceFrameRateKey: frameRate,
@@ -203,9 +265,10 @@ final class VideoCompressor {
         guard writer.startWriting() else {
             throw AppError.writerFailed(writer.error?.localizedDescription ?? "writer failed to start")
         }
-        writer.startSession(atSourceTime: .zero)
+        let sessionStart = timeRange?.start ?? .zero
+        writer.startSession(atSourceTime: sessionStart)
 
-        let totalSeconds = max(duration.seconds, 0.1)
+        let totalSeconds = max(seconds, 0.1)
         let videoQueue = DispatchQueue(label: "compress.video")
 
         // Cancelling the Swift task stops the reader, which ends both pumps.
@@ -213,7 +276,7 @@ final class VideoCompressor {
           await withTaskGroup(of: Void.self) { group in
             group.addTask {
                 await Self.pump(output: videoOutput, input: videoInput, queue: videoQueue) { time in
-                    let p = min(max(time.seconds / totalSeconds, 0), 1)
+                    let p = min(max((time.seconds - sessionStart.seconds) / totalSeconds, 0), 1)
                     DispatchQueue.main.async { progress(p) }
                 }
             }
@@ -249,7 +312,7 @@ final class VideoCompressor {
         // ---- verify
         let outBytes = (try? FileManager.default.attributesOfItem(atPath: outURL.path)[.size] as? NSNumber)?.int64Value ?? 0
         let outDuration = try await AVURLAsset(url: outURL).load(.duration).seconds
-        if abs(outDuration - duration.seconds) > 1.0 {
+        if abs(outDuration - seconds) > 1.0 {
             try? FileManager.default.removeItem(at: outURL)
             throw AppError.verifyFailed("Length changed - result discarded")
         }
@@ -292,7 +355,7 @@ final class VideoCompressor {
         let values = try FileManager.default.temporaryDirectory
             .resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
         if let free = values.volumeAvailableCapacityForImportantUsage, free < bytes {
-            throw AppError.notEnoughSpace
+            throw AppError.notEnoughSpace(needed: bytes)
         }
     }
 }
