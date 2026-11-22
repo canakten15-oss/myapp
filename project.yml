@@ -29,8 +29,8 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.myapp   # TODO
-        MARKETING_VERSION: "0.8.0"
-        CURRENT_PROJECT_VERSION: "8"
+        MARKETING_VERSION: "0.8.1"
+        CURRENT_PROJECT_VERSION: "9"
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1,2"
         DEVELOPMENT_TEAM: ""                              # TODO: your Apple team ID
@@ -39,7 +39,7 @@ targets:
     info:
       path: MyApp/Info.plist
       properties:
-        CFBundleDisplayName: MyApp
+        CFBundleDisplayName: Slash
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
@@ -52,8 +52,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        NSPhotoLibraryUsageDescription: "MyApp needs access to your videos to make smaller copies of them. Everything stays on your device."
-        NSPhotoLibraryAddUsageDescription: "MyApp saves the smaller copy of each video to your library."
+        NSPhotoLibraryUsageDescription: "Slash needs access to your videos to make smaller copies of them. Everything stays on your device."
+        NSPhotoLibraryAddUsageDescription: "Slash saves the smaller copy of each video to your library."
         NSUserTrackingUsageDescription: "Allowing this lets the free version show more relevant ads. The app works the same either way."
         # Google's public TEST app ID. Replace with your AdMob app ID before release.
         GADApplicationIdentifier: ca-app-pub-3940256099942544~1458002511

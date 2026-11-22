@@ -17,7 +17,7 @@ struct ContentView: View {
                     DeniedView()
                 }
             }
-            .navigationTitle(model.isRunning ? "" : "MyApp")
+            .navigationTitle(model.isRunning ? "" : "Slash")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showSettings = true } label: { Image(systemName: "gearshape") }
@@ -482,8 +482,8 @@ struct AccessView: View {
     var body: some View {
         VStack(spacing: 20) {
             Image(systemName: "film.stack").font(.system(size: 56)).foregroundStyle(Color.accentColor)
-            Text("Shrink your videos, keep your memories").font(.title2.bold()).multilineTextAlignment(.center)
-            Text("MyApp makes smaller copies of your biggest videos on this iPhone. Nothing is uploaded, and nothing is deleted without your confirmation.")
+            Text("Slash the size. Keep the shot.").font(.title2.bold()).multilineTextAlignment(.center)
+            Text("Slash makes smaller copies of your biggest videos on this iPhone. Nothing is uploaded, and nothing is deleted without your confirmation.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
             Button("Allow access to videos") { Task { await model.requestAccess() } }

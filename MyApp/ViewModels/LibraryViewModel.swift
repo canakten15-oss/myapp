@@ -408,7 +408,7 @@ final class LibraryViewModel: ObservableObject {
         let model = withUnsafeBytes(of: &sys.machine) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
-        return (["MyApp \(version) (\(build)) · \(model) · \(d.systemName) \(d.systemVersion)"] + report).joined(separator: "\n")
+        return (["Slash \(version) (\(build)) · \(model) · \(d.systemName) \(d.systemVersion)"] + report).joined(separator: "\n")
     }
 
     // MARK: persistence + housekeeping

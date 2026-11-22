@@ -116,9 +116,9 @@ enum PhotoLibraryService {
         return newIdentifier.value
     }
 
-    // MARK: "MyApp – compressed" album (every copy lands here too, for easy comparison)
+    // MARK: "Slash – compressed" album (every copy lands here too, for easy comparison)
 
-    static let compressedAlbumTitle = "MyApp – compressed"
+    static let compressedAlbumTitle = "Slash – compressed"
 
     static func compressedAlbum() async throws -> PHAssetCollection {
         if let existing = findCompressedAlbum() { return existing }

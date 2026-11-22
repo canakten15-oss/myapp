@@ -1,8 +1,10 @@
-# MyApp
+# Slash
+
+*Slash the size. Keep the shot.*
 
 **Shrink the biggest videos in your iPhone library without losing your memories, and without a subscription.**
 
-MyApp re-encodes large videos to HEVC on your iPhone's own hardware encoder. It saves the smaller copy with the original's date, location, favorite flag and albums, and only deletes an original after iOS asks you to confirm.
+Slash re-encodes large videos to HEVC on your iPhone's own hardware encoder. It saves the smaller copy with the original's date, location, favorite flag and albums, and only deletes an original after iOS asks you to confirm.
 
 - 100% on-device: no uploads, no account, no server
 - Keeps HDR (Dolby Vision is converted to HLG HDR), orientation, GPS, date, camera info and stereo audio

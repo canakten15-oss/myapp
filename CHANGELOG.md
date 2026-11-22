@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.8.1 - 2026-11-22
+- App name: Slash (home screen, title, texts, report). Copies now go to the album "Slash – compressed"
+
 ## 0.8.0 - 2026-11-22
 From the first real iPhone test (iPhone 16 Pro, 8 videos):
 - Quality check matches frames instead of timestamps: copies of videos with a hidden lead-in were compared against neighbouring frames and wrongly rejected (0.92–0.95 instead of ~0.98)
