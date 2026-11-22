@@ -19,11 +19,13 @@ final class FlowUITests: XCTestCase {
 
         // 1. Access screen → system dialog → allow full access
         let allow = app.buttons["allowAccess"]
-        if allow.waitForExistence(timeout: 10) {
+        // The system dialog sometimes takes a while in a cold simulator: try up to 3 times.
+        for _ in 0..<3 where allow.waitForExistence(timeout: 10) {
             allow.tap()
-            answerSystemDialog(prefixes: ["Allow Full Access", "Allow Access to All", "Allow"], timeout: 15)
+            answerSystemDialog(prefixes: ["Allow Full Access", "Allow Access to All", "Allow"], timeout: 30)
             // iOS may ask a second time to confirm full access
             answerSystemDialog(prefixes: ["Allow Full Access", "Allow Access to All"], timeout: 4)
+            if !allow.waitForExistence(timeout: 3) { break }
         }
 
         // 2. The test video is listed and NOT pre-selected
@@ -74,6 +76,13 @@ final class FlowUITests: XCTestCase {
                 let inApp = XCUIApplication().alerts.buttons.matching(pred).firstMatch
                 if inApp.exists {
                     inApp.tap()
+                    return
+                }
+                // newer iOS versions may present the photo prompt outside a classic alert
+                let anyButton = springboard.buttons.matching(pred).firstMatch
+                if p != "Allow", p != "Delete", anyButton.exists, anyButton.isHittable {
+                    shot(springboard, "dialog-\(p)")
+                    anyButton.tap()
                     return
                 }
             }
