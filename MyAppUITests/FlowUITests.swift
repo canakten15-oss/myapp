@@ -47,8 +47,9 @@ final class FlowUITests: XCTestCase {
         row.tap()
         XCTAssertTrue(compress.isEnabled, "Compress not enabled after selecting a video")
         app.buttons["Best quality"].tap()
+        shot(app, "2b-selected")
         compress.tap()
-        answerSystemDialog(prefixes: ["Allow"], timeout: 5)   // iOS 26: notification permission
+        shot(app, "2c-after-compress-tap")
 
         // 4. Working screen appears, then finishes
         XCTAssertTrue(app.staticTexts["workingTitle"].waitForExistence(timeout: 20), "working screen did not appear")
@@ -74,6 +75,27 @@ final class FlowUITests: XCTestCase {
         expectation(for: gone, evaluatedWith: delete)
         waitForExpectations(timeout: 20)
         shot(app, "5-after-delete")
+    }
+
+    /// Main screen with a video selected, once in each of the three blues.
+    func testThemes() throws {
+        let app = XCUIApplication()
+        app.launchArguments += ["-minSizeMB", "1", "-onboarded", "YES"]
+        app.launch()
+        let row = app.buttons["videoRow"].firstMatch
+        guard row.waitForExistence(timeout: 20) else { return }   // needs photo access from testFullFlow
+        if !row.isSelected { row.tap() }
+        for theme in ["electric", "estoril", "royal"] {
+            app.buttons["settings"].tap()
+            let swatch = app.buttons["theme-\(theme)"]
+            XCTAssertTrue(swatch.waitForExistence(timeout: 10), "theme switch missing")
+            swatch.tap()
+            shot(app, "theme-\(theme)-settings")
+            app.buttons["Done"].firstMatch.tap()
+            _ = app.buttons["compressButton"].waitForExistence(timeout: 10)
+            sleep(2)
+            shot(app, "theme-\(theme)-main")
+        }
     }
 
     /// Screenshots in German and Turkish, to check the translations on screen.

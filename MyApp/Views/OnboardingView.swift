@@ -3,6 +3,7 @@ import SwiftUI
 /// Three short pages before the photo-access question: what Slash does, privacy, and that the user decides.
 struct OnboardingView: View {
     var onDone: () -> Void
+    @Environment(\.theme) private var theme
     @State private var page = 0
 
     private struct Page: Identifiable {
@@ -26,15 +27,16 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(spacing: 24) {
+            SlashWordmark().padding(.top, 12)
             TabView(selection: $page) {
                 ForEach(pages) { p in
                     VStack(spacing: 20) {
                         Image(systemName: p.icon)
                             .font(.system(size: 60, weight: .semibold))
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(theme.text)
                             .accessibilityHidden(true)
-                        Text(p.title).font(.title.bold()).multilineTextAlignment(.center)
-                        Text(p.text).font(.body).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        Text(p.title).font(.slashDisplay(34)).multilineTextAlignment(.center)
+                        Text(p.text).font(.body).foregroundStyle(Palette.secondary).multilineTextAlignment(.center)
                     }
                     .padding(.horizontal, 32)
                     .tag(p.id)
@@ -47,18 +49,17 @@ struct OnboardingView: View {
                 if page < pages.count - 1 { withAnimation { page += 1 } } else { onDone() }
             } label: {
                 Text(page < pages.count - 1 ? "Next" : "Get started")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(SlashButtonStyle())
             .padding(.horizontal, 24)
             .accessibilityIdentifier(page < pages.count - 1 ? "onboardingNext" : "onboardingDone")
 
             Button("Skip") { onDone() }
                 .font(.subheadline)
                 .padding(.bottom, 8)
+                .foregroundStyle(Palette.secondary)
                 .accessibilityIdentifier("onboardingSkip")
         }
+        .foregroundStyle(Palette.text)
     }
 }

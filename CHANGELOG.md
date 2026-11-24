@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.1 - 2026-11-24
+- New look: dark, with the slash as the identity (logo, app icon, condensed type, diagonal cut in bars and on the video)
+- Three blues to choose from in Settings: Electric, Estoril, Royal. No more green
+- Library: big "could free" number, tabs instead of stacked grey cards, large video tiles with a playing preview (the first fully visible one, or hold a tile)
+- Bottom panel: the shrink bar shows the cut live, two level cards, bigger button
+- Working screen: the slash moves across the current video; "saved" shows the estimate until the first video is done
+- Background: leaving the app no longer fails a video. It pauses and redoes that video when you come back (iOS stops the encoder in the background; real background work needs Apple's background GPU permission)
+
 ## 0.9.0 - 2026-11-24
 - Probe search: tests a lower step first on the 3-second piece, so easy videos come out smaller
 - Encoder: keyframe every 4 s, B-frames, 10-bit also for SDR

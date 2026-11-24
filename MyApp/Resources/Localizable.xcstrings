@@ -33,6 +33,22 @@
         }
       }
     },
+    "%@ slashed so far": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bisher %@ gespart"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "şu ana kadar %@ kazanıldı"
+          }
+        }
+      }
+    },
     "%@ to free": {
       "localizations": {
         "de": {
@@ -343,6 +359,98 @@
         }
       }
     },
+    "%lld videos slashed · ready to free": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld video slashed · ready to free"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld videos slashed · ready to free"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Video verkleinert · bereit zum Freigeben"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Videos verkleinert · bereit zum Freigeben"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld video küçültüldü · boşaltmaya hazır"
+          }
+        }
+      }
+    },
+    "%lld videos · %@": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld video · %@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld videos · %@"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Video · %@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Videos · %@"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld video · %@"
+          }
+        }
+      }
+    },
     "%lld videos · %@ · %@": {
       "localizations": {
         "en": {
@@ -511,6 +619,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "Hepsi"
+          }
+        }
+      }
+    },
+    "All %lld videos": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld video"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "All %lld videos"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Video"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Alle %lld Videos"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toplam %lld video"
           }
         }
       }
@@ -735,6 +889,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Test raporu temizlensin mi?"
+          }
+        }
+      }
+    },
+    "Colour": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Farbe"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renk"
           }
         }
       }
@@ -1023,6 +1193,22 @@
         }
       }
     },
+    "Electric blue": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elektroblau"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elektrik mavisi"
+          }
+        }
+      }
+    },
     "Estimating…": {
       "localizations": {
         "de": {
@@ -1035,6 +1221,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tahmin ediliyor…"
+          }
+        }
+      }
+    },
+    "Estoril blue": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estorilblau"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Estoril mavisi"
           }
         }
       }
@@ -1179,6 +1381,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bilgi"
+          }
+        }
+      }
+    },
+    "Interrupted. Redoing when Slash is open.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unterbrochen. Wird wiederholt, wenn Slash geöffnet ist."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kesintiye uğradı. Slash açıkken yeniden yapılacak."
+          }
+        }
+      }
+    },
+    "Keep Slash open. The screen stays on while it works. If you leave, it continues when you come back.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lass Slash geöffnet. Der Bildschirm bleibt an, solange es arbeitet. Wenn du die App verlässt, geht es weiter, sobald du zurückkommst."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slash'ı açık tut. Çalışırken ekran açık kalır. Uygulamadan çıkarsan, geri döndüğünde devam eder."
           }
         }
       }
@@ -1551,6 +1785,22 @@
         }
       }
     },
+    "Paused: Slash was in the background. Continues now that you're back.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausiert: Slash war im Hintergrund. Geht jetzt weiter, da du zurück bist."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duraklatıldı: Slash arka plandaydı. Geri döndüğün için şimdi devam ediyor."
+          }
+        }
+      }
+    },
     "Paused: battery is low. Plug in your charger to continue.": {
       "localizations": {
         "de": {
@@ -1615,6 +1865,22 @@
         }
       }
     },
+    "Preview": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vorschau"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Önizleme"
+          }
+        }
+      }
+    },
     "Privacy policy": {
       "localizations": {
         "de": {
@@ -1643,6 +1909,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kısa bir parçada hızlı test"
+          }
+        }
+      }
+    },
+    "Royal blue": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Königsblau"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kraliyet mavisi"
           }
         }
       }
@@ -1711,6 +1993,22 @@
         }
       }
     },
+    "Select videos": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Videos auswählen"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video seç"
+          }
+        }
+      }
+    },
     "Select videos to compress": {
       "localizations": {
         "de": {
@@ -1723,6 +2021,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sıkıştırmak için video seç"
+          }
+        }
+      }
+    },
+    "Select videos to see how much they shrink.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wähle Videos aus, um zu sehen, wie stark sie schrumpfen."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne kadar küçüleceklerini görmek için video seç."
           }
         }
       }
@@ -1791,6 +2105,22 @@
         }
       }
     },
+    "Shrunk videos show up here, so you can compare them with the original.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verkleinerte Videos erscheinen hier, damit du sie mit dem Original vergleichen kannst."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Küçültülen videolar burada görünür, böylece onları orijinalle karşılaştırabilirsin."
+          }
+        }
+      }
+    },
     "Shrunk · %lld": {
       "localizations": {
         "de": {
@@ -1835,6 +2165,68 @@
           "stringUnit": {
             "state": "translated",
             "value": "Atla"
+          }
+        }
+      }
+    },
+    "Slash %lld videos": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Slash %lld video"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Slash %lld videos"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Video verkleinern"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld Videos verkleinern"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld videoyu küçült"
+          }
+        }
+      }
+    },
+    "Slash could free": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slash könnte freigeben"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slash boşaltabilir"
           }
         }
       }
@@ -1983,6 +2375,22 @@
         }
       }
     },
+    "Tap to select · hold to preview": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tippen zum Auswählen · halten für Vorschau"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seçmek için dokun · önizleme için basılı tut"
+          }
+        }
+      }
+    },
     "Test report": {
       "localizations": {
         "de": {
@@ -2011,6 +2419,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Orijinal zaten silindi. Kopyayı izliyorsun."
+          }
+        }
+      }
+    },
+    "These would lose visible quality, so the originals were kept.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese würden sichtbar Qualität verlieren, deshalb wurden die Originale behalten."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bunlar görünür kalite kaybederdi, bu yüzden orijinaller korundu."
           }
         }
       }
@@ -2063,6 +2487,22 @@
         }
       }
     },
+    "Try all three. Your choice is kept.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Probier alle drei aus. Deine Wahl bleibt gespeichert."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Üçünü de dene. Seçimin saklanır."
+          }
+        }
+      }
+    },
     "Version": {
       "localizations": {
         "de": {
@@ -2075,6 +2515,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sürüm"
+          }
+        }
+      }
+    },
+    "Video %lld of %lld": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video %lld von %lld"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video %lld / %lld"
           }
         }
       }
@@ -2159,6 +2615,22 @@
         }
       }
     },
+    "after ≈ %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "danach ≈ %@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sonra ≈ %@"
+          }
+        }
+      }
+    },
     "iOS asks you to confirm. Deleted videos stay in “Recently Deleted” for 30 days.": {
       "localizations": {
         "de": {
@@ -2217,6 +2689,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld videoda"
+          }
+        }
+      }
+    },
+    "of %@ in %lld videos": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "of %@ in %lld video"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "of %@ in %lld videos"
+                }
+              }
+            }
+          }
+        },
+        "de": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "von %@ in %lld Video"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "von %@ in %lld Videos"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "toplam %@ · %lld video"
           }
         }
       }
@@ -2281,6 +2799,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "−%%%lld"
+          }
+        }
+      }
+    },
+    "≈ %@ expected": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "≈ %@ erwartet"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "≈ %@ bekleniyor"
           }
         }
       }

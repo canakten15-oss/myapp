@@ -93,6 +93,17 @@ jobs:
           grep -E "\[TEST\]|error:|Test Case.*(passed|failed|skipped)" test.log | sort -u | head -60 || true
           mkdir -p screenshots
           xcrun xcresulttool export attachments --path TestResults.xcresult --output-path screenshots 2>/dev/null || true
+          # rename UUID files to their attachment names (manifest.json maps them)
+          python3 - <<'PY' || true
+          import json, os
+          m = json.load(open("screenshots/manifest.json"))
+          for test in m:
+              for a in test.get("attachments", []):
+                  src = os.path.join("screenshots", a["exportedFileName"])
+                  name = a.get("suggestedHumanReadableName") or a["exportedFileName"]
+                  if os.path.exists(src):
+                      os.rename(src, os.path.join("screenshots", name.replace("/", "-")))
+          PY
           ls screenshots | head -30
 
       - uses: actions/upload-artifact@v4

@@ -4,19 +4,21 @@ import SwiftUI
 struct ShareCard: View {
     let savedBytes: Int64
     let count: Int
+    var theme: AppTheme = .default
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("SLASH")
-                .font(.system(size: 22, weight: .heavy, design: .rounded))
-                .tracking(4)
-                .foregroundStyle(Color(red: 0.31, green: 0.86, blue: 0.55))
+            HStack(spacing: 14) {
+                SlashMark(size: 52)
+                Text(verbatim: "SLASH").font(.slashDisplay(56)).foregroundStyle(.white)
+            }
+            .environment(\.theme, theme)
             Text("I just freed")
                 .font(.system(size: 34, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.75))
             Text(Format.bytes(savedBytes))
-                .font(.system(size: 92, weight: .heavy, design: .rounded))
-                .foregroundStyle(.white)
+                .font(.slashNumber(190))
+                .foregroundStyle(theme.text)
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
             Text("\(count) videos · no visible difference")
@@ -29,7 +31,7 @@ struct ShareCard: View {
         }
         .padding(56)
         .frame(width: 1080, height: 1080, alignment: .topLeading)
-        .background(Color(red: 0.07, green: 0.07, blue: 0.08))
+        .background(Palette.background)
     }
 
     @MainActor

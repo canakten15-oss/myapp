@@ -34,6 +34,11 @@ final class LibraryViewModel: ObservableObject {
     @Published private(set) var batchDone = 0
     @Published private(set) var batchStarted = Date()
     @Published private(set) var lastBatchSaved: Int64 = 0
+    /// Estimate at the start of a batch, shown until the first video is done.
+    @Published private(set) var batchExpectedSaved: Int64 = 0
+    /// Set when the app goes to the background while working: iOS stops the video encoder then.
+    private var wentToBackground = false
+    private var backgroundObserver: NSObjectProtocol?
     @Published private(set) var etaText = String(localized: "Estimating…")
     /// Shown after a finished batch (result screen).
     @Published var batchResult: BatchResult?
@@ -200,12 +205,17 @@ final class LibraryViewModel: ObservableObject {
         userCancelled = false
         resumableIDs = []
         defaults.set(queue.map(\.id), forKey: "batchQueue")   // survives the app being closed
-        BackgroundRunner.shared.onExpire = { [weak self] in self?.runTask?.cancel() }
-        BackgroundRunner.shared.requestNotificationPermissionIfNeeded()
-        BackgroundRunner.shared.batchStarted(total: queue.count)
+        // Background work is off for now: iOS stops the hardware encoder in the background
+        // (needs Apple's background-GPU permission). Leaving the app pauses; coming back continues.
+        backgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.wentToBackground = true }
+        }
         SafetyMonitor.start()
         isRunning = true
         lastBatchSaved = 0
+        batchExpectedSaved = estimatedSavings
         batchTotal = queue.count
         batchDone = 0
         batchStarted = Date()
@@ -223,7 +233,18 @@ final class LibraryViewModel: ObservableObject {
             if Task.isCancelled { break }
             await SafetyMonitor.waitUntilSafe { [weak self] reason in self?.pauseText = reason?.label }
             if Task.isCancelled { break }
-            let outcome = await process(item)
+            var outcome = await process(item)
+            // Interrupted because the app went to the background: wait until it's back, then redo this video.
+            var tries = 0
+            while case .failed = outcome, wentToBackground, tries < 3, !Task.isCancelled {
+                tries += 1
+                pauseText = String(localized: "Paused: Slash was in the background. Continues now that you're back.")
+                await Self.waitUntilActive()
+                wentToBackground = false
+                update(item.id, .pending)
+                outcome = await process(item)
+                pauseText = nil
+            }
             if case .pending = outcome {} else {
                 var left = defaults.stringArray(forKey: "batchQueue") ?? []
                 left.removeAll { $0 == item.id }
@@ -240,6 +261,9 @@ final class LibraryViewModel: ObservableObject {
 
         etaTask?.cancel()
         pauseText = nil
+        if let backgroundObserver { NotificationCenter.default.removeObserver(backgroundObserver) }
+        backgroundObserver = nil
+        wentToBackground = false
         UIApplication.shared.isIdleTimerDisabled = false
         AdService.shared.batchEnded()   // ads only while working: never after a job
         isRunning = false
@@ -359,10 +383,23 @@ final class LibraryViewModel: ObservableObject {
             update(id, s)
             return s
         } catch {
+            if wentToBackground {
+                log("\(Format.bytes(item.fileSize)) interrupted (app in background), will redo · \(error.localizedDescription)")
+                let s = ItemStatus.failed(String(localized: "Interrupted. Redoing when Slash is open."))
+                update(id, s)
+                return s
+            }
             log("\(Format.bytes(item.fileSize)) FAILED: \(error.localizedDescription)")
             let s = ItemStatus.failed(error.localizedDescription)
             update(id, s)
             return s
+        }
+    }
+
+    /// Returns once the app is in the foreground again.
+    private static func waitUntilActive() async {
+        while UIApplication.shared.applicationState != .active {
+            try? await Task.sleep(nanoseconds: 500_000_000)
         }
     }
 

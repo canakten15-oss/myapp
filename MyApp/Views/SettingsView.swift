@@ -11,6 +11,14 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
+                    ThemePicker().padding(.vertical, 6)
+                } header: {
+                    Text("Colour")
+                } footer: {
+                    Text("Try all three. Your choice is kept.")
+                }
+
+                Section {
                     Stepper("Only list videos over \(model.minSizeMB) MB", value: $model.minSizeMB, in: 20...2000, step: 20)
                 } footer: {
                     Text("Edited, slo-mo, time-lapse and shared videos are always skipped so nothing gets lost.")
