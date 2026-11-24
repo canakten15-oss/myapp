@@ -1,0 +1,16 @@
+[TEST] degraded ssim=0.8214874301877997
+[TEST] hdr_hlg Best quality rung=0 10738 kbit/s 7355477 -> 4252731 bytes (43% smaller) ssim=0.9975
+[TEST] portrait Best quality rung=0 4090 kbit/s 2790797 -> 1728253 bytes (39% smaller) ssim=0.9968
+[TEST] sdr_1080p Best quality rung=0 8339 kbit/s 7775326 -> 4489679 bytes (43% smaller) ssim=0.9975
+[TEST] sdr_1080p Max savings rung=0 5307 kbit/s 7775326 -> 2945763 bytes (63% smaller) ssim=0.9938
+Test Case '-[MyAppTests.BenchTests testBenchmark]' skipped (0.023 seconds).
+Test Case '-[MyAppTests.CompressorTests testBestIsBetterThanMax]' passed (114.720 seconds).
+Test Case '-[MyAppTests.CompressorTests testHDRStaysHDR]' passed (31.187 seconds).
+Test Case '-[MyAppTests.CompressorTests testPortraitOrientationKept]' passed (21.195 seconds).
+Test Case '-[MyAppTests.CompressorTests testQualityCheckScores]' passed (14.898 seconds).
+Test Case '-[MyAppTests.CompressorTests testSDRBothLevels]' passed (66.499 seconds).
+Test Case '-[MyAppTests.CompressorTests testSizeRuleNeverKeepsABigCopy]' passed (30.944 seconds).
+Test Case '-[MyAppTests.LibraryTests testEndToEndBatch]' skipped (0.023 seconds).
+Test Case '-[MyAppUITests.FlowUITests testFullFlow]' passed (133.582 seconds).
+Test Case '-[MyAppUITests.FlowUITests testThemes]' passed (29.728 seconds).
+Test Case '-[MyAppUITests.FlowUITests testTranslatedScreens]' passed (37.641 seconds).
