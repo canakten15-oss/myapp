@@ -34,7 +34,7 @@ final class LibraryViewModel: ObservableObject {
     @Published private(set) var batchDone = 0
     @Published private(set) var batchStarted = Date()
     @Published private(set) var lastBatchSaved: Int64 = 0
-    @Published private(set) var etaText = "Estimating…"
+    @Published private(set) var etaText = String(localized: "Estimating…")
     /// Shown after a finished batch (result screen).
     @Published var batchResult: BatchResult?
 
@@ -211,7 +211,7 @@ final class LibraryViewModel: ObservableObject {
         batchStarted = Date()
         progressHistory = []
         displayedETA = nil
-        etaText = "Estimating…"
+        etaText = String(localized: "Estimating…")
         AdService.shared.batchStarted()
         UIApplication.shared.isIdleTimerDisabled = true
         startETALoop()
@@ -281,7 +281,7 @@ final class LibraryViewModel: ObservableObject {
         let needsDownload = !PhotoLibraryService.isLocallyAvailable(item.asset)
         let needed = estimatedCopy + (needsDownload ? item.fileSize : 0) + 300_000_000
         if Self.freeSpace() < needed {
-            let status = ItemStatus.skipped("Needs \(Format.bytes(needed)) free space")
+            let status = ItemStatus.skipped(String(localized: "Needs \(Format.bytes(needed)) free space"))
             update(id, status)
             appendReportLine(item, q, "\(Format.bytes(item.fileSize)) skipped: needs \(Format.bytes(needed)) free", started)
             return status
@@ -320,7 +320,7 @@ final class LibraryViewModel: ObservableObject {
             case .alreadyEfficient:
                 markProcessed(id)
                 log("\(Format.bytes(item.fileSize)) skipped: already efficient")
-                let s = ItemStatus.skipped("Already small, nothing to gain")
+                let s = ItemStatus.skipped(String(localized: "Already small, nothing to gain"))
                 update(id, s)
                 return s
 
@@ -351,11 +351,11 @@ final class LibraryViewModel: ObservableObject {
         } catch AppError.qualityTooLow(let score) {
             // copy discarded, original untouched; remembered so nobody repeats the attempt
             log(String(format: "\(Format.bytes(item.fileSize)) rejected: SSIM %.3f", score))
-            let reason = String(format: "%.0f%% similar with %@", score * 100, q.label)
+            let reason = String(localized: "\(Int((score * 100).rounded()))% similar with \(q.label)")
             rejected.insert(RejectedRecord(originalID: id, fileSize: item.fileSize, level: q.label,
                                            reason: reason, date: Date()), at: 0)
             save(rejected, key: "rejectedRecords")
-            let s = ItemStatus.skipped("Can't shrink without visible loss")
+            let s = ItemStatus.skipped(String(localized: "Can't shrink without visible loss"))
             update(id, s)
             return s
         } catch {
@@ -424,7 +424,7 @@ final class LibraryViewModel: ObservableObject {
         guard now.timeIntervalSince(batchStarted) >= 20,
               let first = progressHistory.first, now.timeIntervalSince(first.0) >= 10,
               p - first.1 > 0.0005 else {
-            if displayedETA == nil { etaText = "Estimating…" }
+            if displayedETA == nil { etaText = String(localized: "Estimating…") }
             return
         }
         let rate = (p - first.1) / now.timeIntervalSince(first.0)   // progress per second
@@ -458,7 +458,7 @@ final class LibraryViewModel: ObservableObject {
                 shouldAskForReview = true   // happy moment: space just freed
             }
         } catch {
-            errorMessage = "Nothing was deleted."
+            errorMessage = String(localized: "Nothing was deleted.")
         }
     }
 

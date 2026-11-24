@@ -259,7 +259,7 @@ struct ActionBar: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        Text("\(model.selectedItems.count) video\(model.selectedItems.count == 1 ? "" : "s") · \(Format.bytes(model.selectedBytes)) · \(model.quality.explanation)")
+                        Text("\(model.selectedItems.count) videos · \(Format.bytes(model.selectedBytes)) · \(model.quality.explanation)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
@@ -272,7 +272,7 @@ struct ActionBar: View {
 
             Button { model.start() } label: {
                 Text(model.selectedItems.isEmpty ? "Select videos to compress"
-                     : "Compress \(model.selectedItems.count) video\(model.selectedItems.count == 1 ? "" : "s")")
+                     : "Compress \(model.selectedItems.count) videos")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
             }

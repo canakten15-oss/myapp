@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.9.0 - 2026-11-24
+- Probe search: tests a lower step first on the 3-second piece, so easy videos come out smaller
+- Encoder: keyframe every 4 s, B-frames, 10-bit also for SDR
+- Compare screen: watch the copy and switch to the original at the same moment, before deleting anything
+- Result screen: compare → share → delete; share card "I freed X GB with Slash"
+- Library overview: all videos, total size, what Slash could free
+- Smart selection: biggest 5/10, over 1 GB, by year
+- Phone vs iCloud: shows which savings free space on this iPhone and which only in iCloud
+- Pauses when the iPhone is hot or the battery is low and unplugged; continues by itself
+- iOS 26: keeps working in the background with system progress on the Lock Screen; notification when done
+- Resume an interrupted batch
+- Onboarding (3 pages) before the photo-access question
+- German and Turkish
+- Finish sound + haptic; App Store rating asked once, right after space was freed
+
 ## 0.8.1 - 2026-11-22
 - App name: Slash (home screen, title, texts, report). Copies now go to the album "Slash – compressed"
 

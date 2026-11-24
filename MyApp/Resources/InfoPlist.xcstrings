@@ -1,0 +1,75 @@
+{
+  "sourceLanguage": "en",
+  "version": "1.0",
+  "strings": {
+    "NSPhotoLibraryUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slash needs access to your videos to make smaller copies of them. Everything stays on your device."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slash braucht Zugriff auf deine Videos, um kleinere Kopien davon zu erstellen. Alles bleibt auf deinem Gerät."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slash, videolarının daha küçük kopyalarını oluşturmak için videolarına erişmeli. Her şey cihazında kalır."
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryAddUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slash saves the smaller copy of each video to your library."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slash sichert die kleinere Kopie jedes Videos in deiner Mediathek."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slash, her videonun küçük kopyasını arşivine kaydeder."
+          }
+        }
+      }
+    },
+    "NSUserTrackingUsageDescription": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allowing this lets the free version show more relevant ads. The app works the same either way."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn du das erlaubst, zeigt die kostenlose Version passendere Werbung. Die App funktioniert so oder so gleich."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İzin verirsen ücretsiz sürüm daha ilgili reklamlar gösterir. Uygulama her iki durumda da aynı çalışır."
+          }
+        }
+      }
+    }
+  }
+}

@@ -7,13 +7,13 @@ enum WorkPhase: String, Equatable {
 
     var label: String {
         switch self {
-        case .downloading: return "Downloading from iCloud"
-        case .testing: return "Quick test on a short piece"
-        case .compressing: return "Compressing"
-        case .retrying: return "Second try at higher quality"
-        case .finishing: return "Finishing file"
-        case .checking: return "Checking quality"
-        case .saving: return "Saving to Photos"
+        case .downloading: return String(localized: "Downloading from iCloud")
+        case .testing: return String(localized: "Quick test on a short piece")
+        case .compressing: return String(localized: "Compressing")
+        case .retrying: return String(localized: "Second try at higher quality")
+        case .finishing: return String(localized: "Finishing file")
+        case .checking: return String(localized: "Checking quality")
+        case .saving: return String(localized: "Saving to Photos")
         }
     }
 }
@@ -86,15 +86,15 @@ enum CompressionQuality: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .maxSavings: return "Max savings"
-        case .bestQuality: return "Best quality"
+        case .maxSavings: return String(localized: "Max savings")
+        case .bestQuality: return String(localized: "Best quality")
         }
     }
 
     var explanation: String {
         switch self {
-        case .maxSavings: return "Smallest files. No visible difference on the phone."
-        case .bestQuality: return "Indistinguishable, even on a big TV. Saves less."
+        case .maxSavings: return String(localized: "Smallest files. No visible difference on the phone.")
+        case .bestQuality: return String(localized: "Indistinguishable, even on a big TV. Saves less.")
         }
     }
 
@@ -160,9 +160,9 @@ enum Format {
     /// "~4 min left", "~45 s left"
     static func eta(_ seconds: TimeInterval) -> String {
         let s = max(Int(seconds.rounded()), 1)
-        if s < 60 { return "~\(s) s left" }
+        if s < 60 { return String(localized: "~\(s) s left") }
         let m = Int((Double(s) / 60).rounded())
-        return m < 60 ? "~\(m) min left" : "~\(m / 60) h \(m % 60) min left"
+        return m < 60 ? String(localized: "~\(m) min left") : String(localized: "~\(m / 60) h \(m % 60) min left")
     }
 }
 
@@ -172,12 +172,12 @@ enum AppError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .loadFailed: return "Could not load the original video"
-        case .noVideoTrack: return "No video track found"
-        case .notEnoughSpace(let n): return "Needs \(Format.bytes(n)) free space"
+        case .loadFailed: return String(localized: "Could not load the original video")
+        case .noVideoTrack: return String(localized: "No video track found")
+        case .notEnoughSpace(let n): return String(localized: "Needs \(Format.bytes(n)) free space")
         case .writerFailed(let m): return "Encoding failed: \(m)"
         case .verifyFailed(let m): return m
-        case .qualityTooLow(let s): return String(format: "Can't shrink without visible loss (%.0f%% similar)", s * 100)
+        case .qualityTooLow(let s): return String(localized: "Can't shrink without visible loss (\(Int((s * 100).rounded()))% similar)")
         }
     }
 }

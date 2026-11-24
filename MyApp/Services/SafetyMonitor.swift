@@ -12,7 +12,7 @@ enum SafetyMonitor {
         var label: String {
             switch self {
             case .hot: return String(localized: "Paused: your iPhone is warm. Continues when it has cooled down.")
-            case .lowBattery: return String(localized: "Paused: battery below 20%. Plug in your charger to continue.")
+            case .lowBattery: return String(localized: "Paused: battery is low. Plug in your charger to continue.")
             }
         }
     }

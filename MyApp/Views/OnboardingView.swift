@@ -15,7 +15,7 @@ struct OnboardingView: View {
     private let pages: [Page] = [
         Page(id: 0, icon: "film.stack",
              title: "Slash the size. Keep the shot.",
-             text: "Slash makes smaller copies of your biggest videos, often 40–65% smaller, with no visible difference on your iPhone."),
+             text: "Slash makes smaller copies of your biggest videos, often half the size or less, with no visible difference on your iPhone."),
         Page(id: 1, icon: "lock.iphone",
              title: "Nothing leaves your iPhone",
              text: "Every video is compressed on this iPhone. Nothing is uploaded, there is no account, and HDR, date, place and albums are kept."),

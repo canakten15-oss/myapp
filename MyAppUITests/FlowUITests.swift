@@ -75,6 +75,30 @@ final class FlowUITests: XCTestCase {
         shot(app, "5-after-delete")
     }
 
+    /// Screenshots in German and Turkish, to check the translations on screen.
+    func testTranslatedScreens() throws {
+        for (lang, locale) in [("de", "de_DE"), ("tr", "tr_TR")] {
+            let app = XCUIApplication()
+            app.launchArguments += ["-AppleLanguages", "(\(lang))", "-AppleLocale", locale, "-minSizeMB", "1",
+                                    "-onboarded", "NO"]
+            app.launch()
+            if app.buttons["onboardingNext"].waitForExistence(timeout: 10) {
+                shot(app, "\(lang)-onboarding-1")
+                app.buttons["onboardingNext"].tap()
+                shot(app, "\(lang)-onboarding-2")
+                app.buttons["onboardingSkip"].tap()
+            }
+            _ = app.buttons["compressButton"].waitForExistence(timeout: 15)
+            shot(app, "\(lang)-main")
+            if app.buttons["selectMenu"].exists {
+                app.buttons["selectMenu"].tap()
+                shot(app, "\(lang)-select-menu")
+                app.tap()
+            }
+            app.terminate()
+        }
+    }
+
     // MARK: helpers
 
     /// Taps the first button in a system alert whose label starts with one of the prefixes.
