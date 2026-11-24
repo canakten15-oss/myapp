@@ -38,6 +38,26 @@ enum PhotoLibraryService {
         }
     }
 
+    struct ScanResult {
+        var items: [VideoItem]
+        var allVideosBytes: Int64
+        var allVideosCount: Int
+    }
+
+    /// Videos worth compressing, biggest first, plus totals for the library overview. Call off the main thread.
+    static func scanLibrary(minBytes: Int64, excluding processed: Set<String>) -> ScanResult {
+        var total: Int64 = 0
+        var count = 0
+        let all = PHFetchOptions()
+        all.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.video.rawValue)
+        PHAsset.fetchAssets(with: all).enumerateObjects { asset, _, _ in
+            total += fileSize(of: asset)
+            count += 1
+        }
+        return ScanResult(items: fetchCandidates(minBytes: minBytes, excluding: processed),
+                          allVideosBytes: total, allVideosCount: count)
+    }
+
     /// Videos worth compressing, biggest first. Call off the main thread.
     static func fetchCandidates(minBytes: Int64, excluding processed: Set<String>) -> [VideoItem] {
         let copiesAlbum = compressedAlbumAssetIDs()
@@ -54,7 +74,7 @@ enum PhotoLibraryService {
             let size = fileSize(of: asset)
             guard size >= minBytes else { return }
             if isEdited(asset) { return }
-            items.append(VideoItem(asset: asset, fileSize: size))
+            items.append(VideoItem(asset: asset, fileSize: size, isLocal: isLocallyAvailable(asset)))
         }
         return items.sorted { $0.fileSize > $1.fileSize }
     }

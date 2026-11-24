@@ -17,6 +17,13 @@ final class FlowUITests: XCTestCase {
         app.launch()
         shot(app, "1-launch")
 
+        // 0. Onboarding (3 pages) → skip after checking it shows
+        let skip = app.buttons["onboardingSkip"]
+        if skip.waitForExistence(timeout: 10) {
+            shot(app, "0-onboarding")
+            skip.tap()
+        }
+
         // 1. Access screen → system dialog → allow full access
         let allow = app.buttons["allowAccess"]
         // The system dialog sometimes takes a while in a cold simulator: try up to 3 times.
@@ -48,6 +55,16 @@ final class FlowUITests: XCTestCase {
         let delete = app.buttons["deleteOriginals"]
         XCTAssertTrue(delete.waitForExistence(timeout: 240), "batch did not finish with a copy saved")
         shot(app, "4-done")
+
+        // 4b. Compare: watch the copy, switch to the original, close
+        let compareButton = app.buttons["compareButton"].firstMatch
+        XCTAssertTrue(compareButton.waitForExistence(timeout: 10), "no compare button on the result screen")
+        compareButton.tap()
+        let compareSwitch = app.segmentedControls["compareSwitch"]
+        XCTAssertTrue(compareSwitch.waitForExistence(timeout: 20), "compare screen did not open")
+        compareSwitch.buttons["Original"].tap()
+        shot(app, "4b-compare")
+        app.buttons["Done"].firstMatch.tap()
 
         // 5. Delete originals → iOS confirmation → card disappears
         delete.tap()

@@ -1,11 +1,22 @@
 import Photos
+import StoreKit
 import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var model: LibraryViewModel
+    @Environment(\.requestReview) private var requestReview
+    @AppStorage("onboarded") private var onboarded = false
     @State private var showSettings = false
 
     var body: some View {
+        if !onboarded && model.authorization == .notDetermined {
+            OnboardingView { withAnimation { onboarded = true } }
+        } else {
+            main
+        }
+    }
+
+    private var main: some View {
         NavigationStack {
             Group {
                 switch model.authorization {
@@ -29,7 +40,7 @@ struct ContentView: View {
             .sheet(isPresented: $showSettings) { SettingsView() }
             .sheet(item: $model.batchResult) { result in
                 BatchResultView(result: result)
-                    .presentationDetents([.medium])
+                    .presentationDetents([.large])
             }
             .alert("Info", isPresented: Binding(
                 get: { model.errorMessage != nil },
@@ -41,6 +52,11 @@ struct ContentView: View {
             }
         }
         .tint(.accentColor)
+        .onChange(of: model.shouldAskForReview) { _, ask in
+            guard ask else { return }
+            model.shouldAskForReview = false
+            requestReview()
+        }
     }
 }
 
@@ -48,6 +64,7 @@ struct ContentView: View {
 
 struct LibraryView: View {
     @EnvironmentObject private var model: LibraryViewModel
+    @State private var compare: ShrunkRecord?
 
     var body: some View {
         Group {
@@ -63,10 +80,12 @@ struct LibraryView: View {
 
     private var listView: some View {
         List {
-            if model.freedBytes > 0 || !model.pendingDeleteIDs.isEmpty {
-                Section { OverviewCard() }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+            if !model.resumableIDs.isEmpty {
+                Section { ResumeCard() }
             }
+
+            Section { OverviewCard() }
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
 
             Section {
                 if model.isScanning && model.items.isEmpty {
@@ -90,9 +109,24 @@ struct LibraryView: View {
                     Text("To do · \(model.items.count)")
                     Spacer()
                     if !model.items.isEmpty {
-                        Button("All") { model.setAll(selected: true) }
-                        Text("·").foregroundStyle(.tertiary)
-                        Button("None") { model.setAll(selected: false) }
+                        Menu {
+                            Button("Biggest 5") { model.selectBiggest(5) }
+                            Button("Biggest 10") { model.selectBiggest(10) }
+                            Button("All over 1 GB") { model.selectOver(1_000_000_000) }
+                            if !model.years.isEmpty {
+                                Menu("By year") {
+                                    ForEach(model.years, id: \.self) { y in
+                                        Button(String(y)) { model.selectYear(y) }
+                                    }
+                                }
+                            }
+                            Divider()
+                            Button("All") { model.setAll(selected: true) }
+                            Button("None") { model.setAll(selected: false) }
+                        } label: {
+                            Label("Select", systemImage: "checklist").labelStyle(.titleAndIcon)
+                        }
+                        .accessibilityIdentifier("selectMenu")
                     }
                 }
                 .font(.footnote.weight(.semibold))
@@ -100,7 +134,11 @@ struct LibraryView: View {
 
             if !model.shrunk.isEmpty {
                 Section {
-                    ForEach(model.shrunk) { ShrunkRow(record: $0) }
+                    ForEach(model.shrunk) { r in
+                        Button { compare = r } label: { ShrunkRow(record: r) }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("shrunkRow")
+                    }
                 } header: {
                     Text("Shrunk · \(model.shrunk.count)").font(.footnote.weight(.semibold))
                 } footer: {
@@ -120,24 +158,43 @@ struct LibraryView: View {
         }
         .listStyle(.insetGrouped)
         .refreshable { await model.scan() }
+        .sheet(item: $compare) { r in CompareView(originalID: r.originalID, copyID: r.copyID) }
     }
 }
 
-/// Space already saved, and originals waiting to be deleted.
+/// Library overview, space already freed, and originals waiting to be deleted.
 struct OverviewCard: View {
     @EnvironmentObject private var model: LibraryViewModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if model.freedBytes > 0 {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(Format.bytes(model.freedBytes))
-                        .font(.system(.title, design: .rounded).weight(.bold))
-                    Text("freed so far").foregroundStyle(.secondary)
+            if model.allVideosBytes > 0 {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Your videos").font(.subheadline).foregroundStyle(.secondary)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(Format.bytes(model.allVideosBytes))
+                            .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                        Text("in \(model.allVideosCount) videos").foregroundStyle(.secondary)
+                    }
+                    if model.potentialSavings > 0 {
+                        Text("Slash could free about \(Format.bytes(model.potentialSavings))")
+                            .font(.headline)
+                            .foregroundStyle(Color.accentColor)
+                    }
                 }
+            } else if model.isScanning {
+                HStack(spacing: 10) { ProgressView(); Text("Looking at your videos…").foregroundStyle(.secondary) }
             }
+
+            if model.freedBytes > 0 {
+                Label("\(Format.bytes(model.freedBytes)) freed so far", systemImage: "checkmark.seal.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.accentColor)
+            }
+
             if !model.pendingDeleteIDs.isEmpty {
-                Text("\(model.pendingDeleteIDs.count) original\(model.pendingDeleteIDs.count == 1 ? "" : "s") still in your library. Delete \(model.pendingDeleteIDs.count == 1 ? "it" : "them") to free \(Format.bytes(model.pendingSavedBytes)).")
+                Divider()
+                Text("\(model.pendingDeleteIDs.count) originals still in your library. Delete them to free \(Format.bytes(model.pendingSavedBytes)).")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                 Button(role: .destructive) {
@@ -150,6 +207,26 @@ struct OverviewCard: View {
             }
         }
         .padding(.vertical, 6)
+    }
+}
+
+/// Offers to continue a batch that was interrupted.
+struct ResumeCard: View {
+    @EnvironmentObject private var model: LibraryViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("\(model.resumableIDs.count) videos left from your last run", systemImage: "arrow.clockwise.circle.fill")
+                .font(.subheadline.weight(.semibold))
+            HStack {
+                Button("Continue") { model.resume() }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("resumeButton")
+                Button("Not now") { model.dismissResume() }
+                    .buttonStyle(.bordered)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -175,6 +252,13 @@ struct ActionBar: View {
                         Text("≈ \(Format.bytes(model.estimatedSavings)) saved")
                             .font(.headline)
                             .contentTransition(.numericText())
+                        if model.estimatedSavingsOnPhone < model.estimatedSavings {
+                            Text(model.estimatedSavingsOnPhone > 0
+                                 ? "\(Format.bytes(model.estimatedSavingsOnPhone)) on this iPhone, the rest in iCloud"
+                                 : "Frees iCloud storage. These videos are only stored in iCloud.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                         Text("\(model.selectedItems.count) video\(model.selectedItems.count == 1 ? "" : "s") · \(Format.bytes(model.selectedBytes)) · \(model.quality.explanation)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -241,7 +325,15 @@ struct VideoRow: View {
             }
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(Format.bytes(item.fileSize)).font(.headline)
+                HStack(spacing: 6) {
+                    Text(Format.bytes(item.fileSize)).font(.headline)
+                    if !item.isLocal {
+                        Image(systemName: "icloud")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel("Stored in iCloud")
+                    }
+                }
                 if let date = item.asset.creationDate {
                     Text(date, style: .date).font(.caption).foregroundStyle(.secondary)
                 }
@@ -284,6 +376,9 @@ struct ShrunkRow: View {
             Spacer()
             if record.originalDeleted {
                 Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.accentColor).accessibilityLabel("Done")
+            } else {
+                Image(systemName: "play.circle").font(.title3).foregroundStyle(Color.accentColor)
+                    .accessibilityLabel("Compare")
             }
         }
         .padding(.vertical, 2)
@@ -371,7 +466,13 @@ struct WorkingView: View {
                 }
                 .font(.footnote.monospacedDigit())
 
-                Text("Keep the app open. The screen stays on while this runs.")
+                if let pause = model.pauseText {
+                    Label(pause, systemImage: "pause.circle.fill")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.orange)
+                }
+
+                Text(Self.backgroundHint)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -415,62 +516,123 @@ struct WorkingView: View {
         .padding()
     }
 
+    static var backgroundHint: LocalizedStringKey {
+        if #available(iOS 26.0, *) {
+            return "You can leave Slash. It keeps working and shows its progress on the Lock Screen."
+        }
+        return "Keep the app open. The screen stays on while this runs."
+    }
+
     private func phaseLabel(_ status: ItemStatus) -> String {
         if case .working(let phase, _) = status { return phase.label }
         return "Preparing"
     }
 }
 
-// MARK: - Result screen after a batch
+// MARK: - Result screen after a batch: watch first, then share or delete
 
 struct BatchResultView: View {
     @EnvironmentObject private var model: LibraryViewModel
     @Environment(\.dismiss) private var dismiss
     let result: LibraryViewModel.BatchResult
+    @State private var compare: ShrunkRecord?
+    @State private var shareImage: Image?
+
+    private var records: [ShrunkRecord] {
+        let ids = Set(result.shrunkIDs)
+        return model.shrunk.filter { ids.contains($0.originalID) }
+    }
 
     var body: some View {
-        VStack(spacing: 18) {
-            Image(systemName: result.shrunkIDs.isEmpty ? "info.circle" : "checkmark.circle.fill")
-                .font(.system(size: 44))
-                .foregroundStyle(result.shrunkIDs.isEmpty ? Color.secondary : Color.accentColor)
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 18) {
+                    Image(systemName: result.shrunkIDs.isEmpty ? "info.circle" : "checkmark.circle.fill")
+                        .font(.system(size: 44))
+                        .foregroundStyle(result.shrunkIDs.isEmpty ? Color.secondary : Color.accentColor)
+                        .accessibilityHidden(true)
 
-            if result.shrunkIDs.isEmpty {
-                Text("Nothing to save this time").font(.title2.bold())
-            } else {
-                Text("\(Format.bytes(result.savedBytes)) to free").font(.title.bold())
-                Text("\(result.shrunkIDs.count) video\(result.shrunkIDs.count == 1 ? "" : "s") shrunk. The copies are in your library with the same date, place and albums.")
-                    .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
-            }
-            if result.rejectedCount + result.failedCount > 0 {
-                Text("\(result.rejectedCount + result.failedCount) kept as they are (see “Can't shrink”).")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+                    if result.shrunkIDs.isEmpty {
+                        Text("Nothing to save this time").font(.title2.bold())
+                    } else {
+                        Text("\(Format.bytes(result.savedBytes)) to free").font(.title.bold())
+                        Text("Watch the copies first. They're in your library with the same date, place and albums.")
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(.secondary)
+                    }
+                    if result.rejectedCount + result.failedCount > 0 {
+                        Text("\(result.rejectedCount + result.failedCount) kept as they are (see “Can't shrink”).")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
 
-            Spacer(minLength: 0)
+                    // 1. watch
+                    if !records.isEmpty {
+                        VStack(spacing: 0) {
+                            ForEach(records) { r in
+                                Button { compare = r } label: {
+                                    HStack(spacing: 12) {
+                                        Thumbnail(asset: PhotoLibraryService.asset(r.copyID), size: 44)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("\(Format.bytes(r.inputBytes)) → \(Format.bytes(r.outputBytes))")
+                                                .font(.subheadline.weight(.semibold))
+                                            Text("−\(r.savedPercent)%").font(.caption).foregroundStyle(Color.accentColor)
+                                        }
+                                        Spacer()
+                                        Label("Compare", systemImage: "play.circle.fill")
+                                            .font(.subheadline.weight(.semibold))
+                                    }
+                                    .padding(.vertical, 8)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("compareButton")
+                                if r.id != records.last?.id { Divider() }
+                            }
+                        }
+                        .padding(.horizontal, 14)
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
 
-            if !result.shrunkIDs.isEmpty {
-                Button(role: .destructive) {
-                    Task { await model.deleteOriginals(result.shrunkIDs) }
-                } label: {
-                    Text("Delete \(result.shrunkIDs.count) original\(result.shrunkIDs.count == 1 ? "" : "s")")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
+                    // 2. share
+                    if !result.shrunkIDs.isEmpty, let image = shareImage {
+                        ShareLink(item: image, preview: SharePreview("I freed \(Format.bytes(result.savedBytes)) with Slash", image: image)) {
+                            Label("Share", systemImage: "square.and.arrow.up").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                    }
+
+                    // 3. delete
+                    if !result.shrunkIDs.isEmpty {
+                        Button(role: .destructive) {
+                            Task { await model.deleteOriginals(result.shrunkIDs) }
+                        } label: {
+                            Text("Delete \(result.shrunkIDs.count) originals")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
+                        .controlSize(.large)
+                        .accessibilityIdentifier("deleteOriginals")
+                        Text("iOS asks you to confirm. Deleted videos stay in “Recently Deleted” for 30 days.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    Button("Later") { dismiss() }
+                        .controlSize(.large)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
-                .controlSize(.large)
-                .accessibilityIdentifier("deleteOriginals")
-                Text("iOS asks you to confirm. Deleted videos stay in “Recently Deleted” for 30 days.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                .padding(24)
             }
-            Button("Later") { dismiss() }
-                .controlSize(.large)
         }
-        .padding(24)
+        .sheet(item: $compare) { r in CompareView(originalID: r.originalID, copyID: r.copyID) }
+        .task {
+            if !result.shrunkIDs.isEmpty {
+                shareImage = ShareCard(savedBytes: result.savedBytes, count: result.shrunkIDs.count).render()
+            }
+        }
     }
 }
 

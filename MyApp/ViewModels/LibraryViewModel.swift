@@ -17,6 +17,15 @@ final class LibraryViewModel: ObservableObject {
     @Published private(set) var rejected: [RejectedRecord] = []
 
     @Published var isScanning = false
+    /// Library overview (all videos, not just the big ones).
+    @Published private(set) var allVideosBytes: Int64 = 0
+    @Published private(set) var allVideosCount = 0
+    /// Shown while a batch waits for the phone to cool down or charge.
+    @Published private(set) var pauseText: String?
+    /// Videos left over from a batch that was interrupted (app closed, phone restarted).
+    @Published private(set) var resumableIDs: [String] = UserDefaults.standard.stringArray(forKey: "batchQueue") ?? []
+    /// Set after a successful delete; the view asks for an App Store rating once.
+    @Published var shouldAskForReview = false
     @Published var isRunning = false
     @Published var errorMessage: String?
 
@@ -72,6 +81,34 @@ final class LibraryViewModel: ObservableObject {
     var selectedItems: [VideoItem] { items.filter { $0.isSelected && !$0.status.isFinished } }
     var selectedBytes: Int64 { selectedItems.reduce(0) { $0 + $1.fileSize } }
     var estimatedSavings: Int64 { Int64(Double(selectedBytes) * quality.typicalSavings) }
+    /// Part of the estimate that frees space on this iPhone (originals stored locally).
+    var estimatedSavingsOnPhone: Int64 {
+        Int64(Double(selectedItems.filter(\.isLocal).reduce(0) { $0 + $1.fileSize }) * quality.typicalSavings)
+    }
+    /// Rough overview estimate: what shrinking every listed video could free.
+    var potentialSavings: Int64 { Int64(Double(items.reduce(0) { $0 + $1.fileSize }) * quality.typicalSavings) }
+
+    // MARK: smart selection
+
+    var years: [Int] {
+        Array(Set(items.compactMap { $0.asset.creationDate.map { Calendar.current.component(.year, from: $0) } })).sorted(by: >)
+    }
+
+    func selectBiggest(_ n: Int) {
+        let top = Set(items.sorted { $0.fileSize > $1.fileSize }.prefix(n).map(\.id))
+        for i in items.indices { items[i].isSelected = top.contains(items[i].id) && !items[i].status.isFinished }
+    }
+
+    func selectOver(_ bytes: Int64) {
+        for i in items.indices { items[i].isSelected = items[i].fileSize >= bytes && !items[i].status.isFinished }
+    }
+
+    func selectYear(_ year: Int) {
+        for i in items.indices {
+            let y = items[i].asset.creationDate.map { Calendar.current.component(.year, from: $0) }
+            items[i].isSelected = y == year && !items[i].status.isFinished
+        }
+    }
 
     /// Originals that have a verified copy and are still in the library.
     var pendingDeleteIDs: [String] { shrunk.filter { !$0.originalDeleted }.map(\.originalID) }
@@ -96,12 +133,16 @@ final class LibraryViewModel: ObservableObject {
         for r in shrunk { exclude.insert(r.originalID); exclude.insert(r.copyID) }
         for r in rejected { exclude.insert(r.originalID) }
         let excluded = exclude
-        let found = await Task.detached(priority: .userInitiated) {
-            PhotoLibraryService.fetchCandidates(minBytes: minBytes, excluding: excluded)
+        let result = await Task.detached(priority: .userInitiated) {
+            PhotoLibraryService.scanLibrary(minBytes: minBytes, excluding: excluded)
         }.value
+        allVideosBytes = result.allVideosBytes
+        allVideosCount = result.allVideosCount
         // keep the user's selection across rescans
         let selected = Set(items.filter(\.isSelected).map(\.id))
-        items = found.map { var i = $0; i.isSelected = selected.contains(i.id); return i }
+        items = result.items.map { var i = $0; i.isSelected = selected.contains(i.id); return i }
+        let present = Set(items.map(\.id))
+        resumableIDs = resumableIDs.filter { present.contains($0) }
         isScanning = false
     }
 
@@ -128,7 +169,23 @@ final class LibraryViewModel: ObservableObject {
         runTask = Task { await runBatch() }
     }
 
-    func cancel() { runTask?.cancel() }
+    func cancel() {
+        userCancelled = true
+        runTask?.cancel()
+    }
+    private var userCancelled = false
+
+    /// Continues an interrupted batch: selects the videos that were left and starts again.
+    func resume() {
+        let ids = Set(resumableIDs)
+        for i in items.indices { items[i].isSelected = ids.contains(items[i].id) && !items[i].status.isFinished }
+        start()
+    }
+
+    func dismissResume() {
+        resumableIDs = []
+        defaults.removeObject(forKey: "batchQueue")
+    }
 
     private func runBatch() async {
         var queue = selectedItems
@@ -140,6 +197,13 @@ final class LibraryViewModel: ObservableObject {
             queue.sort { $0.fileSize > $1.fileSize }
         }
 
+        userCancelled = false
+        resumableIDs = []
+        defaults.set(queue.map(\.id), forKey: "batchQueue")   // survives the app being closed
+        BackgroundRunner.shared.onExpire = { [weak self] in self?.runTask?.cancel() }
+        BackgroundRunner.shared.requestNotificationPermissionIfNeeded()
+        BackgroundRunner.shared.batchStarted(total: queue.count)
+        SafetyMonitor.start()
         isRunning = true
         lastBatchSaved = 0
         batchTotal = queue.count
@@ -157,7 +221,15 @@ final class LibraryViewModel: ObservableObject {
         var rejectedCount = 0, failedCount = 0
         for item in queue {
             if Task.isCancelled { break }
-            switch await process(item) {
+            await SafetyMonitor.waitUntilSafe { [weak self] reason in self?.pauseText = reason?.label }
+            if Task.isCancelled { break }
+            let outcome = await process(item)
+            if case .pending = outcome {} else {
+                var left = defaults.stringArray(forKey: "batchQueue") ?? []
+                left.removeAll { $0 == item.id }
+                defaults.set(left, forKey: "batchQueue")
+            }
+            switch outcome {
             case .done(let s): doneIDs.append(item.id); saved += s
             case .skipped: rejectedCount += 1
             case .failed: failedCount += 1
@@ -167,10 +239,22 @@ final class LibraryViewModel: ObservableObject {
         }
 
         etaTask?.cancel()
+        pauseText = nil
         UIApplication.shared.isIdleTimerDisabled = false
         AdService.shared.batchEnded()   // ads only while working: never after a job
         isRunning = false
         let wasCancelled = Task.isCancelled
+        BackgroundRunner.shared.batchEnded(success: !wasCancelled)
+        if userCancelled || !wasCancelled {
+            defaults.removeObject(forKey: "batchQueue")
+        } else {
+            // stopped by iOS (background time over): offer to continue next time
+            resumableIDs = defaults.stringArray(forKey: "batchQueue") ?? []
+        }
+        if !wasCancelled {
+            BackgroundRunner.shared.playFinished()
+            BackgroundRunner.shared.notifyFinishedIfInBackground(savedBytes: saved, count: doneIDs.count)
+        }
         await scan()
         if !wasCancelled && (!doneIDs.isEmpty || rejectedCount + failedCount > 0) {
             batchResult = BatchResult(shrunkIDs: doneIDs, savedBytes: saved,
@@ -353,6 +437,9 @@ final class LibraryViewModel: ObservableObject {
             displayedETA = target
         }
         etaText = Format.eta(displayedETA!)
+        BackgroundRunner.shared.update(
+            progress: p,
+            subtitle: String(localized: "Video \(min(batchDone + 1, batchTotal)) of \(batchTotal) · \(etaText)"))
     }
 
     // MARK: delete originals
@@ -365,6 +452,11 @@ final class LibraryViewModel: ObservableObject {
             try await PhotoLibraryService.deleteAssets(withIdentifiers: targets)
             refreshRecords()
             batchResult = nil
+            let key = "reviewAsked-" + (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
+            if freedBytes > 0 && !defaults.bool(forKey: key) {
+                defaults.set(true, forKey: key)
+                shouldAskForReview = true   // happy moment: space just freed
+            }
         } catch {
             errorMessage = "Nothing was deleted."
         }

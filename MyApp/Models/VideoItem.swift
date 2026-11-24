@@ -43,6 +43,9 @@ struct VideoItem: Identifiable, Equatable {
     var id: String { asset.localIdentifier }
     let asset: PHAsset
     let fileSize: Int64
+    /// false = the original only lives in iCloud ("Optimize iPhone Storage"):
+    /// shrinking it frees iCloud storage, not space on this iPhone.
+    var isLocal: Bool = true
     var isSelected: Bool = false   // user picks; nothing is pre-selected
     var status: ItemStatus = .pending
 
@@ -101,6 +104,15 @@ enum CompressionQuality: String, CaseIterable, Identifiable {
         switch self {
         case .maxSavings: return [0.35, 0.50]
         case .bestQuality: return [0.55, 0.70]
+        }
+    }
+
+    /// With the probe (videos > 9 s): one extra, lower step is tried first on the 3-second piece.
+    /// Easy videos (calm, little detail) land on it and save ~10 points more; the quality check still guards it.
+    var probeRatios: [Double] {
+        switch self {
+        case .maxSavings: return [0.25] + bitrateRatios
+        case .bestQuality: return [0.42] + bitrateRatios
         }
     }
 

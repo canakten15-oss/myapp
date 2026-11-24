@@ -38,6 +38,10 @@ final class VideoCompressor {
     var enforceQualityCheck = true
     /// Test a short piece first to skip rungs (or the whole video) that can't pass.
     var useProbe = true
+    /// Encode SDR in 10-bit too (Main10): less banding in skies and walls at the same size.
+    var tenBit = true
+    /// Seconds between keyframes. Keyframes are the most expensive frames; 4 s instead of 2 s saves ~5–10%.
+    var keyframeInterval = 4.0
 
     /// Every attempt of the last compress() call, for the test report ("probe r1 0.981", "r1 0.968 ✗" …).
     private(set) var attempts: [String] = []
@@ -67,16 +71,17 @@ final class VideoCompressor {
         let source = Double(dataRate)
         sourceInfo = String(format: "%.0f fps · %.0f Mbit/s", fps, source / 1_000_000)
 
+        let probing = useProbe && enforceQualityCheck && duration.seconds > Self.probeSeconds * 3
         let bitrates: [Int]
         if source > 0 {
             if source / pixelsPerSecond < Self.efficientSourceBPP { return .alreadyEfficient }
-            bitrates = quality.bitrateRatios.map { Int(source * $0) }
+            // probe search: with the 3-second test, a lower first step is tried at almost no cost
+            bitrates = (probing ? quality.probeRatios : quality.bitrateRatios).map { Int(source * $0) }
         } else {
             // unknown source rate: fall back to bits-per-pixel targets
             bitrates = quality.fallbackBPP.map { Int(pixelsPerSecond * $0) }
         }
 
-        let probing = useProbe && enforceQualityCheck && duration.seconds > Self.probeSeconds * 3
         var lastScore = 0.0
         var encodedRungs = 0
         for (rung, bitrate) in bitrates.enumerated() {
@@ -182,7 +187,7 @@ final class VideoCompressor {
         // ---- reader
         let reader = try AVAssetReader(asset: asset)
         if let timeRange { reader.timeRange = timeRange }
-        let pixelFormat = isHDR
+        let pixelFormat = (isHDR || tenBit)
             ? kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
             : kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         let videoOutput = AVAssetReaderTrackOutput(
@@ -205,9 +210,10 @@ final class VideoCompressor {
 
         var compression: [String: Any] = [
             AVVideoExpectedSourceFrameRateKey: frameRate,
-            AVVideoMaxKeyFrameIntervalDurationKey: 2,
+            AVVideoMaxKeyFrameIntervalDurationKey: keyframeInterval,
+            AVVideoAllowFrameReorderingKey: true,   // B-frames
         ]
-        if isHDR {
+        if isHDR || tenBit {
             compression[AVVideoProfileLevelKey] = kVTProfileLevel_HEVC_Main10_AutoLevel as String
         }
         let colorProperties: [String: Any] = isHDR
