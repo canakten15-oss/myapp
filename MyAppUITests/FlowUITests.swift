@@ -48,6 +48,7 @@ final class FlowUITests: XCTestCase {
         XCTAssertTrue(compress.isEnabled, "Compress not enabled after selecting a video")
         app.buttons["Best quality"].tap()
         compress.tap()
+        answerSystemDialog(prefixes: ["Allow"], timeout: 5)   // iOS 26: notification permission
 
         // 4. Working screen appears, then finishes
         XCTAssertTrue(app.staticTexts["workingTitle"].waitForExistence(timeout: 20), "working screen did not appear")

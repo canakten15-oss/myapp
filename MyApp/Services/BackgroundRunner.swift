@@ -61,7 +61,13 @@ final class BackgroundRunner {
             MainActor.assumeIsolated {
                 self?.task = task
                 task.expirationHandler = { [weak self] in
-                    Task { @MainActor in self?.onExpire?() }
+                    // Only stop the work if Slash is really in the background. While the app is open,
+                    // the batch keeps running in the foreground even if iOS ends the background task.
+                    Task { @MainActor in
+                        guard let self else { return }
+                        self.task = nil
+                        if UIApplication.shared.applicationState == .background { self.onExpire?() }
+                    }
                 }
             }
         }
